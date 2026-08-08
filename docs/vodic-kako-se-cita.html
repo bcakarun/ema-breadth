@@ -1,0 +1,406 @@
+<title>EMA Breadth — kako se čita</title>
+<style>
+  :root{
+    --ground:#FBFCFD; --surface:#FFFFFF; --surface-2:#F1F4F8; --surface-3:#E8EDF4;
+    --line:#DCE3EC; --line-strong:#C3CDDB;
+    --text:#131A24; --text-dim:#5B6678; --text-faint:#8A94A6;
+    --accent:#2E5FBF;
+    --crit:#C92A2F; --crit-bg:#FDECEC;
+    --warn:#B87610; --warn-bg:#FDF4E3;
+    --good:#1B7A4B; --good-bg:#E8F6EE;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0A0D13; --surface:#141A24; --surface-2:#1C2432; --surface-3:#242E3E;
+      --line:#263041; --line-strong:#36435A;
+      --text:#E6EAF2; --text-dim:#8892A6; --text-faint:#69738A;
+      --accent:#5B8DEF;
+      --crit:#F0575C; --crit-bg:rgba(229,72,77,.11);
+      --warn:#F0A32E; --warn-bg:rgba(240,163,46,.11);
+      --good:#3DCB86; --good-bg:rgba(48,163,108,.13);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#FBFCFD; --surface:#FFFFFF; --surface-2:#F1F4F8; --surface-3:#E8EDF4;
+    --line:#DCE3EC; --line-strong:#C3CDDB;
+    --text:#131A24; --text-dim:#5B6678; --text-faint:#8A94A6;
+    --accent:#2E5FBF;
+    --crit:#C92A2F; --crit-bg:#FDECEC;
+    --warn:#B87610; --warn-bg:#FDF4E3;
+    --good:#1B7A4B; --good-bg:#E8F6EE;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.05);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0A0D13; --surface:#141A24; --surface-2:#1C2432; --surface-3:#242E3E;
+    --line:#263041; --line-strong:#36435A;
+    --text:#E6EAF2; --text-dim:#8892A6; --text-faint:#69738A;
+    --accent:#5B8DEF;
+    --crit:#F0575C; --crit-bg:rgba(229,72,77,.11);
+    --warn:#F0A32E; --warn-bg:rgba(240,163,46,.11);
+    --good:#3DCB86; --good-bg:rgba(48,163,108,.13);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.3);
+  }
+
+  :root{
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--ground); color:var(--text);
+    font-family:var(--sans); font-size:16.5px; line-height:1.62;
+    margin:0; padding:0 20px 96px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto;}
+  p{margin:0 0 1.05em; max-width:66ch;}
+  a{color:var(--accent);}
+
+  /* ---- structural type: mono ---- */
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; font-weight:600;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--text-faint);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--mono); font-weight:600; font-size:clamp(30px,5.4vw,44px);
+    letter-spacing:-.025em; line-height:1.1; text-wrap:balance; margin:0 0 16px;
+  }
+  h2{
+    font-family:var(--mono); font-weight:600; font-size:19px;
+    letter-spacing:-.01em; text-wrap:balance;
+    margin:0 0 18px; padding-bottom:12px; border-bottom:1px solid var(--line);
+  }
+  h3{font-family:var(--mono); font-weight:600; font-size:15px; letter-spacing:-.005em; margin:0 0 6px;}
+  .lede{font-size:19px; line-height:1.55; color:var(--text-dim); max-width:60ch; margin:0 0 8px;}
+
+  header{padding:72px 0 44px;}
+  section{padding:44px 0 0;}
+  .num{font-variant-numeric:tabular-nums;}
+  code{
+    font-family:var(--mono); font-size:.87em;
+    background:var(--surface-2); border:1px solid var(--line);
+    border-radius:4px; padding:1px 5px; color:var(--text);
+  }
+
+  /* ---- hero gauge ---- */
+  .hero{
+    display:grid; grid-template-columns:250px 1fr; gap:36px; align-items:center;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:32px; box-shadow:var(--shadow); margin-top:32px;
+  }
+  @media(max-width:660px){ .hero{grid-template-columns:1fr; gap:24px; text-align:center;} }
+  .gauge-fig{margin:0; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .gauge-fig svg{width:100%; max-width:230px; height:auto; display:block;}
+  .gauge-val{font-family:var(--mono); font-size:46px; font-weight:600; line-height:1; letter-spacing:-.03em; margin-top:-42px;}
+  .gauge-cap{font-family:var(--mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--text-faint); margin-top:16px;}
+  .verdict{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.05em;
+    border-radius:999px; padding:5px 12px; margin-bottom:14px;
+    background:var(--crit-bg); color:var(--crit); border:1px solid currentColor;
+  }
+  .hero p{margin-bottom:0; font-size:15.5px; color:var(--text-dim);}
+  .hero p strong{color:var(--text); font-weight:600;}
+
+  /* ---- definitions ---- */
+  .defs{display:flex; flex-direction:column; gap:2px;}
+  .def{
+    display:grid; grid-template-columns:190px 1fr; gap:28px;
+    padding:22px 0; border-bottom:1px solid var(--line);
+  }
+  .def:last-child{border-bottom:0;}
+  @media(max-width:660px){ .def{grid-template-columns:1fr; gap:12px;} }
+  .def-key{display:flex; flex-direction:column; gap:7px;}
+  .def-name{font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text); letter-spacing:-.01em;}
+  .def-now{
+    font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.02em;
+    line-height:1; font-variant-numeric:tabular-nums;
+  }
+  .def-sub{font-family:var(--mono); font-size:11px; color:var(--text-faint); letter-spacing:.02em;}
+  .def-body{font-size:15.5px;}
+  .def-body p{margin-bottom:.7em;}
+  .def-body p:last-child{margin-bottom:0;}
+  .def-body .aside{
+    font-size:14px; color:var(--text-dim); border-left:2px solid var(--line-strong);
+    padding-left:13px; margin-top:12px;
+  }
+
+  /* ---- zone scale ---- */
+  .scale{display:flex; border-radius:9px; overflow:hidden; border:1px solid var(--line); margin:6px 0 22px;}
+  .zone{flex:1; padding:16px 15px; display:flex; flex-direction:column; gap:5px;}
+  .zone + .zone{border-left:1px solid var(--line);}
+  .zone-r{background:var(--crit-bg);} .zone-a{background:var(--warn-bg);} .zone-g{background:var(--good-bg);}
+  .zone-n{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.03em;}
+  .zone-r .zone-n{color:var(--crit);} .zone-a .zone-n{color:var(--warn);} .zone-g .zone-n{color:var(--good);}
+  .zone-d{font-size:13.5px; line-height:1.45; color:var(--text-dim);}
+  @media(max-width:560px){ .scale{flex-direction:column;} .zone + .zone{border-left:0; border-top:1px solid var(--line);} }
+
+  /* ---- callout ---- */
+  .callout{
+    background:var(--surface-2); border:1px solid var(--line);
+    border-radius:11px; padding:22px 24px; margin:0 0 22px;
+  }
+  .callout h3{margin-bottom:8px;}
+  .callout p:last-child{margin-bottom:0;}
+  .callout.warn{background:var(--warn-bg); border-color:color-mix(in srgb, var(--warn) 35%, transparent);}
+  .callout.warn h3{color:var(--warn);}
+
+  /* ---- limits list ---- */
+  .limits{display:flex; flex-direction:column; gap:0; margin:0; padding:0; list-style:none;}
+  .limits li{display:grid; grid-template-columns:auto 1fr; gap:14px; padding:15px 0; border-bottom:1px solid var(--line); align-items:start;}
+  .limits li:last-child{border-bottom:0;}
+  .limits .mark{
+    font-family:var(--mono); font-size:11px; font-weight:600; color:var(--crit);
+    background:var(--crit-bg); border-radius:4px; padding:3px 7px; letter-spacing:.05em; white-space:nowrap;
+    margin-top:2px;
+  }
+  .limits strong{font-weight:600;}
+  .limits p{margin:4px 0 0; font-size:14.5px; color:var(--text-dim);}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px; margin:0 0 8px;}
+  table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; min-width:420px;}
+  th{
+    text-align:right; padding:11px 14px; font-weight:600; font-size:10.5px;
+    letter-spacing:.09em; text-transform:uppercase; color:var(--text-faint);
+    background:var(--surface-2); border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  th:first-child, td:first-child{text-align:left;}
+  td{padding:10px 14px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap;}
+  tr:last-child td{border-bottom:0;}
+  .cap{font-size:13px; color:var(--text-faint); margin:0; max-width:66ch;}
+
+  footer{
+    margin-top:64px; padding-top:26px; border-top:1px solid var(--line);
+    font-family:var(--mono); font-size:11.5px; color:var(--text-faint); letter-spacing:.02em;
+  }
+  footer p{margin:0 0 5px; max-width:none;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px;}
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Kripto · mjera stanja tržišta</p>
+  <h1>EMA Breadth</h1>
+  <p class="lede">Ne mjeri kamo ide jedan coin. Mjeri koliko njih uopće ide gore — i time odgovara na jedino pitanje koje prethodi svakom ulasku: <em>je li ovo tržište u kojem se uopće isplati pokušavati?</em></p>
+
+  <div class="hero">
+    <figure class="gauge-fig">
+      <svg viewBox="0 0 320 176" role="img" aria-label="Gauge pokazuje tier score 32 od 100, u crvenoj zoni">
+        <g fill="none" stroke-linecap="round">
+          <path d="M40 150 A 120 120 0 0 1 280 150" stroke="var(--surface-3)" stroke-width="26"/>
+          <path d="M40 150 A 120 120 0 0 1 280 150" stroke="var(--crit)" stroke-width="26"
+                stroke-dasharray="150.8 376.99" opacity=".28"/>
+          <path d="M40 150 A 120 120 0 0 1 280 150" stroke="var(--warn)" stroke-width="26"
+                stroke-dasharray="0 150.8 75.4 376.99" opacity=".28"/>
+          <path d="M40 150 A 120 120 0 0 1 280 150" stroke="var(--good)" stroke-width="26"
+                stroke-dasharray="0 226.2 150.8 376.99" opacity=".28"/>
+          <path d="M40 150 A 120 120 0 0 1 280 150" stroke="var(--crit)" stroke-width="26"
+                stroke-dasharray="120.97 376.99"/>
+        </g>
+        <text x="40" y="172" fill="var(--text-faint)" font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">0</text>
+        <text x="280" y="172" fill="var(--text-faint)" font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">100</text>
+      </svg>
+      <div class="gauge-val num" style="color:var(--crit)">32.1</div>
+      <div class="gauge-cap">Tier score · 14.7.2026.</div>
+    </figure>
+    <div>
+      <span class="verdict">Tržište je slomljeno</span>
+      <p>Od <strong>71 coina</strong> u Top 120, samo <strong>17.9%</strong> ih je iznad svoje EMA200 na dnevnom grafu — <strong>12 od 67</strong>. Prosječan coin stoji <strong>13.5% ispod</strong> nje.</p>
+      <p style="margin-top:10px;">BTC je istovremeno na <strong>$65.044</strong> i djeluje mirno. To je točno stanje u kojem se najlakše izgubi novac: indeks izgleda podnošljivo, a sve ostalo ne radi.</p>
+    </div>
+  </div>
+</header>
+
+<section>
+  <h2>Zašto uopće gledati breadth</h2>
+  <p>Kad je tržište bikovsko, gotovo bilo koji long ide gore i izgleda kao da znaš što radiš. Kad se okrene u chop — a u kriptu to zna trajati mjesecima — isti potez svaki put pojede malo kapitala. Nijedan graf pojedinog coina ti to ne kaže, jer svaki od njih zasebno uvijek izgleda kao da bi mogao krenuti.</p>
+  <p>BTC te tu posebno vara. Zna rasti dok se altovi ne miču, pa iz njegovog grafa zaključiš da je sve u redu — a nije. Breadth broji <em>sve</em> odjednom i tu iluziju ukida.</p>
+  <div class="callout">
+    <h3>Ideja u jednoj rečenici</h3>
+    <p>Za svaki coin iz Top 120 pitaj samo jedno — je li iznad svoje EMA200 ili ispod — pa prebroji. To je sve. Ostatak je knjigovodstvo oko toga tko smije biti prebrojan.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Brojevi</h2>
+  <div class="defs">
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">tier_score</div>
+        <div class="def-now num" style="color:var(--crit)">32.1</div>
+        <div class="def-sub">skala 0–100</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Glavni broj.</strong> Svaki coin dobije bod za svaki timeframe na kojem je iznad EMA200 — dakle 0, 1 ili 2 boda (4h i 1D). Zbroji sve i normaliziraj na 0–100.</p>
+        <p>100 znači da je svaki coin iznad na oba TF-a. 0 znači da nijedan nije. Danas: <strong>43 boda od mogućih 134</strong> = 32.1.</p>
+        <p class="aside">Broje se samo coini koji imaju dovoljno povijesti za EMA200 na <em>oba</em> timeframea — danas njih 67. Coin star tri mjeseca nema 200 dnevnih svijeća i ne ulazi.</p>
+      </div>
+    </div>
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">pct_above_1d</div>
+        <div class="def-now num" style="color:var(--crit)">17.9%</div>
+        <div class="def-sub">n = 67 coina</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Koliko ih je iznad EMA200 na dnevnom.</strong> Ovo je mjera <em>režima</em> — EMA200 na 1D pamti 200 dana, pa se ne pomiče od jednog dobrog tjedna.</p>
+        <p>Kad je ovaj broj nizak, tržište nije u korekciji nego u drugom stanju. Danas: <strong>12 od 67 coina</strong>.</p>
+      </div>
+    </div>
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">pct_above_4h</div>
+        <div class="def-now num" style="color:var(--warn)">47.1%</div>
+        <div class="def-sub">n = 70 coina</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Isto, ali na 4h.</strong> EMA200 na 4h pokriva oko 33 dana — to je taktički sloj, ne režim.</p>
+        <p>Razlika između ova dva broja je informacija sama za sebe. Danas <strong>47.1%</strong> naspram <strong>17.9%</strong>: kratkoročni odskok unutar tržišta koje je dugoročno i dalje ispod vode. Ta kombinacija je klasična zamka — izgleda kao okret, a najčešće je predah.</p>
+      </div>
+    </div>
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">jačina · neto</div>
+        <div class="def-now num" style="color:var(--crit)">−13.5%</div>
+        <div class="def-sub">avg_dist_all_1d</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Koliko su daleko od EME, prosječno, svi coini zajedno</strong> — uključujući negativne. Postotak iznad ti kaže koliko njih, ovaj broj kaže <em>koliko jako</em>.</p>
+        <p>Bitno je jer 20% iznad nije isto ako su ostali 1% ispod ili 30% ispod. Danas prosječan coin visi <strong>13.5% ispod</strong> svoje EMA200 — nije blizu povratka.</p>
+      </div>
+    </div>
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">jačina · trendajući</div>
+        <div class="def-now num" style="color:var(--good)">+33.1%</div>
+        <div class="def-sub">avg_dist_above_1d</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Ista mjera, ali samo za coine koji jesu iznad.</strong> Danas: ona manjina koja radi, radi <em>jako</em> — u prosjeku 33% iznad svoje EME.</p>
+        <p>Tako izgleda usko tržište: malo pobjednika, ali daleko odmaklih. Ako te dvije brojke gledaš skupa, dobiješ sliku koju nijedna sama ne daje.</p>
+      </div>
+    </div>
+
+    <div class="def">
+      <div class="def-key">
+        <div class="def-name">n_universe</div>
+        <div class="def-now num">71</div>
+        <div class="def-sub">od Top 120</div>
+      </div>
+      <div class="def-body">
+        <p><strong>Koliko coina je stvarno ušlo u račun.</strong> Kreće se od Top 120 po market capu, pa otpadne 49:</p>
+        <p class="aside"><strong>32</strong> stableova, wrapped tokena, tokeniziranih trezora i zlata (XAUT, PAXG — zlato u kripto omotu nije kripto tržište) · <strong>14</strong> bez spot para na Binanceu ili Bybitu · <strong>3</strong> „prikovana” (BFUSD, U, USDTB) — stableovi koje nijedan popis imena nije znao, a otkriveni su po tome što se ne miču.</p>
+        <p>Nazivnik je vidljiv namjerno. Bez njega ne znaš je li breadth pao zato što je tržište palo, ili zato što je par coina ispalo s burze.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Kako se čita</h2>
+  <div class="callout" style="margin:0 0 20px;">
+    <h3>Zone opisuju sadašnjost, ne budućnost</h3>
+    <p>Ovo je brojanje, ne prognoza. „Većina coina je iznad EMA200” znači doslovno to — <em>sada, u ovoj sekundi</em>. Ne znači da će tako i ostati. Tržište može biti široko u uptrendu danas i pasti sutra; „sve raste” i „sve će nastaviti rasti” nisu ista rečenica.</p>
+  </div>
+  <div class="scale">
+    <div class="zone zone-r">
+      <div class="zone-n">0–40 · slomljeno</div>
+      <div class="zone-d">Većina coina <em>je</em> ispod EMA200. Tržište nije široko u uptrendu. Long ovdje traži precizan tajming — najskuplja stvar koju možeš tražiti od sebe.</div>
+    </div>
+    <div class="zone zone-a">
+      <div class="zone-n">40–60 · nejasno</div>
+      <div class="zone-d">Podijeljeno. Nema širine ni na jednu stranu — ovdje se najviše overtrada, jer svaki pojedini graf izgleda kao da bi mogao krenuti.</div>
+    </div>
+    <div class="zone zone-g">
+      <div class="zone-n">60–100 · široko</div>
+      <div class="zone-d">Većina coina <em>je</em> iznad EMA200. Tržište je široko u uptrendu — u ovom trenutku. Što slijedi, ovaj broj ne tvrdi.</div>
+    </div>
+  </div>
+  <p class="cap">Granice 40 i 60 su početna pretpostavka, ne izmjereni prag. Vidi ograde ispod.</p>
+</section>
+
+<section>
+  <h2>Što ovo <em>ne</em> zna</h2>
+  <p>Alat je nov. Sve ispod je iskreno stanje na dan <strong>15.7.2026.</strong> i mijenja se samo s vremenom, ne s trudom.</p>
+  <ul class="limits">
+    <li>
+      <span class="mark">1 DAN</span>
+      <div>
+        <strong>Iskrena povijest ima jednu točku.</strong>
+        <p>Zapis počinje danas i raste po jedan dan. Ne postoji način da se ubrza — vidi zadnju sekciju.</p>
+      </div>
+    </li>
+    <li>
+      <span class="mark">PRAG</span>
+      <div>
+        <strong>Nitko ne zna gdje je granica.</strong>
+        <p>U zadnjih 134 dana (procijenjeno, pristrano) median tier bio je <strong>25</strong>, a iznad 50 popeo se svega <strong>9%</strong> vremena. Pravilo „ne longam ispod 50” u tom uzorku znači „skoro nikad ne longam”. To može biti točno — ali nije provjereno.</p>
+      </div>
+    </li>
+    <li>
+      <span class="mark">SMJER</span>
+      <div>
+        <strong>Ni smjer nije potvrđen.</strong>
+        <p>Djeluje samorazumljivo da je visok breadth dobar za long. Jedini dostupni podatak — 2 godine, pristrano, jedan režim, oko 26 nezavisnih uzoraka — nagovještava <em>obrnuto</em>: da visok breadth prethodi slabijim prinosima. Logika iza toga nije luda: kad je 80% coina <em>već</em> iznad svoje EMA200, potez se već dogodio i ti si kasno.</p>
+        <p style="margin-top:8px;">Ovo ne proturječi zonama gore. Zone kažu <em>gdje smo</em>, ovo pita <em>što slijedi</em> — dvije različite tvrdnje. Podatak je premalen da se u njega vjeruje, ali dovoljan da se ne vjeruje ni suprotnom.</p>
+      </div>
+    </li>
+    <li>
+      <span class="mark">NIJE SIGNAL</span>
+      <div>
+        <strong>Ovo ne nalazi ulaze.</strong>
+        <p>Breadth ne zna koji coin kupiti ni kada. On je guverner: oduzima dopuštenje kad ga nemaš. Ako od njega tražiš ideje, tražiš od termometra da ti prepiše lijek.</p>
+      </div>
+    </li>
+  </ul>
+</section>
+
+<section>
+  <h2>Zašto povijest kreće od danas</h2>
+  <p>Očito rješenje bilo bi uzeti današnjih Top 120 i izračunati breadth unatrag dvije godine. To se čini besplatnim — svijeće postoje, EMA je matematika.</p>
+  <p><strong>I daje krivu sliku.</strong> Današnjih Top 120 su po definiciji preživjeli: dospjeli su tamo tako što su rasli. Gledati unatrag <em>njih</em> znači pitati pobjednike kako je bilo — pa prošlost ispadne puno bikovskija nego što je stvarno bila. Coini koji su ispali iz Top 120 jer su propali ne postoje u toj računici.</p>
+  <p>Točan sastav Top 120 na neki dan u 2024. ne postoji ni u jednom besplatnom izvoru. Zato jedini pošten put: snimaj svaki dan, od danas, i za godinu dana imaš povijest koja je točna <em>po konstrukciji</em> — jer je svaki dan zapisan onim sastavom koji je tog dana stvarno bio.</p>
+  <div class="callout warn">
+    <h3>Skica u aplikaciji</h3>
+    <p>Aplikacija ima i tu izračunatu krivulju od ~800 dana, ali je označena narančastim i zove se <em>skica</em>. Korisna je za oblik i okretišta. Za razinu — i pogotovo za pravila — nije.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Kako je sastavljeno</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Element</th><th>Vrijednost</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Univerzum</td><td>Top 120 po market capu (CoinGecko)</td></tr>
+        <tr><td>Cijene</td><td>Binance spot, Bybit kao rezerva</td></tr>
+        <tr><td>EMA</td><td>200, na 4h i 1D</td></tr>
+        <tr><td>Snimanje</td><td>svaki dan u 00:10 UTC</td></tr>
+        <tr><td>Svijeća</td><td>zadnja zatvorena, nikad u tijeku</td></tr>
+        <tr><td>Isključeni</td><td>stableovi, wrapped, zlato, dnevna vol. &lt; 0.5%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="cap">Prag i duljina EMA su zaključani. Mijenjati ih znači da stara i nova povijest više nisu ista mjera — a to se ne primijeti dok ne bude prekasno.</p>
+</section>
+
+<footer>
+  <p>EMA Breadth · osobni alat, nije investicijski savjet</p>
+  <p>Brojke: zatvoreni podaci za 14.7.2026. · Ograde vrijede na 15.7.2026.</p>
+</footer>
+
+</div>

@@ -1,0 +1,15 @@
+# lokalne postavke alata
+.claude/
+.vscode/
+.idea/
+
+# Windows / macOS smeće
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# tajne — nikad u repozitorij
+.env
+.env.*
+*.key
+secrets.*

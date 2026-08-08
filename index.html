@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMA Breadth — zdravlje kripto tržišta</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131824; --panel2:#1a2130; --border:#232c3f;
+    --text:#e7ecf3; --muted:#8b96a8; --accent:#4f8cff;
+    --green:#22c55e; --green-bg:rgba(34,197,94,.12);
+    --red:#ef4444; --red-bg:rgba(239,68,68,.12);
+    --amber:#f5b942; --amber-bg:rgba(245,185,66,.12);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; padding:16px; min-height:100vh;}
+  h1{font-size:1.35rem; display:flex; align-items:center; gap:10px; margin-bottom:4px;}
+  h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--green); box-shadow:0 0 8px var(--green);}
+  .sub{color:var(--muted); font-size:.85rem; margin-bottom:14px;}
+
+  .controls{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; margin-bottom:12px;}
+  .ctrl{display:flex; flex-direction:column; gap:5px;}
+  .ctrl label{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+  input[type=number], input[type=text], select{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:7px 10px; font-size:.9rem; outline:none;
+  }
+  input:focus, select:focus{border-color:var(--accent);}
+  button.primary{background:var(--accent); border:none; color:#fff; border-radius:8px; padding:9px 20px; font-size:.9rem; font-weight:600; cursor:pointer;}
+  button.primary:hover{filter:brightness(1.1);}
+  button.primary:disabled{opacity:.5; cursor:default;}
+  button.ghost{background:var(--panel2); border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:9px 14px; font-size:.85rem; cursor:pointer;}
+  button.ghost:hover{color:var(--text); border-color:var(--accent);}
+
+  .autorow{display:flex; align-items:center; gap:9px;}
+  .chk{display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--text); cursor:pointer; text-transform:none; letter-spacing:0;}
+  .chk input{accent-color:var(--accent); width:15px; height:15px; cursor:pointer;}
+
+  .statusbar{display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+  #status{color:var(--muted); font-size:.85rem;}
+  #autoStatus{color:var(--muted); font-size:.8rem;}
+  .progress{flex:1; min-width:140px; max-width:340px; height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; display:none;}
+  .progress .fill{height:100%; width:0%; background:var(--accent); transition:width .2s;}
+
+  .err{background:var(--red-bg); border:1px solid var(--red); color:#ffb4b4; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:.85rem; display:none;}
+  .warn{border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:.8rem; line-height:1.5; display:none;}
+  .warn.bias{background:var(--amber-bg); border:1px solid var(--amber); color:#ffe0a3;}
+  .warn.ok{background:var(--green-bg); border:1px solid var(--green); color:#b6f0c9;}
+  .warn.bad{background:var(--red-bg); border:1px solid var(--red); color:#ffb4b4;}
+  .warn b{color:inherit; font-weight:700;}
+
+  .cfg{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px; display:none; gap:12px; flex-wrap:wrap; align-items:flex-end;}
+  .cfg input[type=text]{width:280px; font-family:ui-monospace,monospace; font-size:.78rem;}
+  .cfg .hint{font-size:.75rem; color:var(--muted); flex-basis:100%;}
+
+  .top{display:grid; grid-template-columns:260px 1fr; gap:12px; margin-bottom:12px;}
+  @media(max-width:860px){ .top{grid-template-columns:1fr;} }
+  .gauge{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .gauge canvas{width:100%; max-width:220px; height:auto;}
+  .gauge .val{font-size:2.6rem; font-weight:700; line-height:1; margin-top:-38px;}
+  .gauge .lbl{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:6px;}
+  .gauge .sub2{font-size:.75rem; color:var(--muted); margin-top:8px; text-align:center; line-height:1.5;}
+
+  /* Dva stupca: 1D lijevo, 4h desno. Par se čita vodoravno, sloj okomito. */
+  .metrics{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start;}
+  @media(max-width:560px){ .metrics{grid-template-columns:1fr;} }
+  .metric{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+  .metric .k{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+  .metric .v{font-size:1.3rem; font-weight:700;}
+  .metric .n{font-size:.72rem; color:var(--muted); margin-top:3px;}
+
+  .chart-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px;}
+  .chart-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+  .chart-title{font-weight:700; font-size:1rem;}
+  .src-group,.range-group{display:flex; gap:5px; flex-wrap:wrap;}
+  .range-group{margin-left:auto;}
+  .chip{background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:5px 11px; font-size:.8rem; cursor:pointer; user-select:none; color:var(--muted);}
+  .chip.on{background:rgba(79,140,255,.15); border-color:var(--accent); color:var(--text);}
+  .chip.bias.on{background:var(--amber-bg); border-color:var(--amber); color:#ffe0a3;}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; font-size:.78rem; color:var(--muted);}
+  .legend span{cursor:pointer; user-select:none;}
+  .legend span.off{opacity:.35; text-decoration:line-through;}
+  .legend .sw{display:inline-block; width:16px; height:3px; border-radius:2px; margin-right:6px; vertical-align:3px;}
+  .chart-wrap{position:relative; height:340px;}
+  #chart{position:absolute; inset:0; width:100%; height:100%;}
+  .tip{position:absolute; pointer-events:none; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.76rem; line-height:1.55; display:none; z-index:5; white-space:nowrap; box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .tip .d{color:var(--muted); margin-bottom:4px;}
+
+  /* --- panel Promjene --- */
+  .chg-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px;}
+  .chg-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;}
+  .chg-sub{color:var(--muted); font-size:.76rem; margin-bottom:10px; line-height:1.5;}
+  .chg-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media(max-width:860px){ .chg-grid{grid-template-columns:1fr;} }
+  .chg-col{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+  .chg-col h4{font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; color:var(--muted); font-weight:600;}
+  .chg-row{display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid rgba(255,255,255,.045); font-size:.84rem; flex-wrap:wrap;}
+  .chg-row:last-child{border-bottom:none;}
+  .chg-row .b{font-weight:700; min-width:54px;}
+  .chg-row .num{margin-left:auto; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .chg-empty{color:var(--muted); font-size:.8rem; padding:6px 2px;}
+  .tag{font-size:.58rem; padding:2px 6px; border-radius:4px; font-weight:600; letter-spacing:.03em; white-space:nowrap;}
+  .tag.up{background:var(--green-bg); color:var(--green);}
+  .tag.down{background:var(--red-bg); color:var(--red);}
+  .tag.new{background:rgba(79,140,255,.15); color:var(--accent);}
+  .tag.pin{background:var(--amber-bg); color:var(--amber);}
+  .badge-new{background:var(--accent); color:#fff; border-radius:20px; padding:3px 10px; font-size:.72rem; font-weight:700;}
+  /* Tišina mora izgledati drukčije od kvara: kad nema novosti to PIŠE.
+     Prazno mjesto tada znači da se nešto pokvarilo, a ne da je mirno. */
+  .seen-quiet{color:var(--muted); font-size:.74rem;}
+  .src.novo{background:rgba(79,140,255,.15); color:var(--accent);}
+
+  .table-wrap{background:var(--panel2); border:1px solid var(--border); border-radius:12px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:.88rem; min-width:700px;}
+  th{position:sticky; top:0; background:var(--panel2); text-align:right; padding:10px 12px; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer;}
+  th:hover{color:var(--text);}
+  th.l, td.l{text-align:left;}
+  td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .coin-name{color:var(--muted); font-size:.75rem;}
+  /* Ime coina vodi na CoinGecko. Link je samo na imenu, ne na cijelom redu —
+     brojevi u redu ostaju označivi mišem. */
+  a.cg{color:inherit; text-decoration:none;}
+  a.cg:hover{color:var(--accent); text-decoration:underline;}
+  a.cg::after{content:'↗'; font-size:.62rem; color:var(--muted); margin-left:4px; vertical-align:2px; opacity:0; transition:opacity .12s;}
+  tr:hover a.cg::after{opacity:1;}
+  .price{font-variant-numeric:tabular-nums;}
+  .src{font-size:.6rem; padding:2px 6px; border-radius:4px; margin-left:6px; vertical-align:1px; letter-spacing:.04em; font-weight:600;}
+  .src.binance{background:rgba(240,185,11,.13); color:#f0b90b;}
+  .src.bybit{background:rgba(247,166,0,.13); color:#f7a600;}
+  .cell-above{background:var(--green-bg); color:var(--green); font-weight:600;}
+  .cell-below{background:var(--red-bg); color:var(--red); font-weight:600;}
+  .cell-na{color:var(--muted);}
+  .sect-title{font-size:.95rem; font-weight:700; margin:16px 0 8px;}
+  .sect-title span{color:var(--muted); font-weight:400; font-size:.8rem; margin-left:8px;}
+
+  /* ===================== mobitel =====================
+     Okomiti scroll stranice mora ostati na pregledniku, a vodoravno
+     prevlačenje po grafu na nama — zato pan-y, a ne none. */
+  #chart{touch-action:pan-y;}
+  @media(hover:none){
+    /* Bez miša nema hovera, pa bi strelica "otvara se vani" bila nevidljiva. */
+    a.cg::after{opacity:.55;}
+  }
+  @media(max-width:640px){
+    body{padding:10px;}
+    h1{font-size:1.15rem;}
+    .sub{font-size:.76rem; margin-bottom:10px;}
+    .controls{padding:10px 11px; gap:10px;}
+    /* iOS zumira stranicu čim fokusiraš polje manje od 16px. */
+    input[type=number], input[type=text], select{font-size:16px; padding:8px 10px;}
+    .chip{padding:7px 12px;}          /* prst nije mišji kursor */
+    .range-group{margin-left:0;}
+    .chart-wrap{height:250px;}
+    .legend{gap:12px; font-size:.74rem;}
+    .gauge{padding:12px;}
+    .gauge .val{font-size:2.2rem; margin-top:-30px;}
+    #status, #autoStatus{font-size:.74rem;}
+    .chg-sub{font-size:.7rem;}
+    .chg-row{font-size:.8rem; gap:6px;}
+    .tip{font-size:.7rem; white-space:normal; max-width:min(78vw,250px);}
+    /* Tablica se stišće umjesto da tjera vodoravni scroll; ako i dalje ne
+       stane, .table-wrap ima overflow-x pa ništa nije izgubljeno. */
+    table{min-width:0; font-size:.8rem;}
+    th{padding:8px 5px; font-size:.6rem;}
+    td{padding:8px 5px;}
+    /* Ćelije nasljeđuju nowrap, pa je puni naziv ("United Stables — ne trendira,
+       isključen iz izračuna") razvlačio stupac Coin na 261 px. Kratimo trotočkom. */
+    .coin-name{font-size:.68rem; max-width:96px; overflow:hidden; text-overflow:ellipsis;}
+    .src{font-size:.55rem; padding:1px 4px; margin-left:4px;}
+    /* Burza je metapodatak — na telefonu ustupa mjesto. NOVO i PRIKOVAN ostaju: to je signal. */
+    .src.binance, .src.bybit{display:none;}
+    .c-hide-m{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<h1><span class="dot"></span>EMA Breadth</h1>
+<div class="sub">Koliko je coina iz Top 120 iznad EMA200 na 4h i 1D — zdravlje tržišta kao cjeline · spot: Binance · Bybit · univerzum: CoinGecko</div>
+
+<div class="err" id="errBox"></div>
+<div class="warn" id="staleWarn"></div>
+<div class="warn" id="mixWarn"></div>
+<div class="warn" id="biasWarn"></div>
+
+<div class="cfg" id="cfgBox">
+  <div class="ctrl">
+    <label>Supabase URL</label>
+    <input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co">
+  </div>
+  <div class="ctrl">
+    <label>Anon key</label>
+    <input type="text" id="sbKey" placeholder="eyJhbGciOi...">
+  </div>
+  <div class="ctrl">
+    <label>&nbsp;</label>
+    <button class="primary" id="btnSaveCfg">Spremi</button>
+  </div>
+  <div class="hint">
+    Settings → API u projektu <b>ema-breadth</b>. Anon ključ smije samo čitati (RLS), pa je bezopasan u ovom fileu.
+    Sprema se u localStorage ovog preglednika.
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl">
+    <label title="Mijenja samo ovaj pogled. Zapis uvijek snima Top 120 / EMA 200.">Univerzum (samo pogled)</label>
+    <select id="topN">
+      <option value="50">Top 50</option>
+      <option value="100">Top 100</option>
+      <option value="120" selected>Top 120</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label>EMA</label>
+    <input type="number" id="emaLen" min="20" max="400" step="1" value="200" style="width:80px">
+  </div>
+  <div class="ctrl">
+    <label title="Ponavlja isti dohvat kao gumb Osvježi. U pozadinskom tabu čeka da se vratiš.">Auto-osvježavanje</label>
+    <div class="autorow">
+      <label class="chk"><input type="checkbox" id="autoOn"> uklj.</label>
+      <select id="autoMin">
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+  </div>
+  <div class="ctrl">
+    <label>&nbsp;</label>
+    <button class="primary" id="btnRefresh">Osvježi</button>
+  </div>
+  <div class="ctrl">
+    <label>&nbsp;</label>
+    <button class="ghost" id="btnCfg">Supabase…</button>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div id="status">Spreman.</div>
+  <div id="autoStatus"></div>
+  <div class="progress" id="progWrap"><div class="fill" id="progFill"></div></div>
+</div>
+
+<div class="top">
+  <div class="gauge">
+    <canvas id="gaugeC" width="440" height="260"></canvas>
+    <div class="val" id="gVal">—</div>
+    <div class="lbl">Tier score — sada</div>
+    <div class="sub2" id="gSub">—</div>
+  </div>
+  <div class="metrics" id="metrics"></div>
+</div>
+
+<div class="chart-panel">
+  <div class="chart-head">
+    <div class="chart-title">Povijest</div>
+    <div class="src-group" id="srcGroup"></div>
+    <div class="range-group" id="rangeGroup"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+    <div class="tip" id="tip"></div>
+  </div>
+</div>
+
+<div class="chg-panel" id="chgPanel">
+  <div class="chg-head">
+    <div class="chart-title">Promjene</div>
+    <span id="chgBadge"></span>
+    <div class="range-group" id="chgWinGroup"></div>
+  </div>
+  <div class="chg-sub" id="chgSub"></div>
+  <div id="chgBody"></div>
+</div>
+
+<div class="sect-title">Coini <span id="tblSub">— sada, živo</span></div>
+<div class="table-wrap">
+  <table id="tbl">
+    <thead><tr id="thr"></tr></thead>
+    <tbody id="tb"><tr><td style="padding:30px;text-align:center;color:var(--muted)" colspan="9">Učitavam…</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+// ============ konstante ============
+const BINANCE='https://api.binance.com', BYBIT='https://api.bybit.com';
+const DAY=864e5;
+const TFS=['4h','1d'];
+const TF_LABEL={'4h':'4h','1d':'1D'};
+const BYBIT_TF={'4h':'240','1d':'D'};
+// Isti offseti kao u Edge Functionu — bar koji zatvara dan.
+const CLOSING_OFFSET={'4h':20*36e5,'1d':0};
+// MORA biti identično listi u supabase/functions/breadth-snapshot/index.ts.
+// Ako se raziđu, gauge i zapis u bazi mjere različite stvari — a to nećeš primijetiti.
+const STABLES=new Set(['USDT','USDC','BUSD','DAI','TUSD','USDP','FDUSD','PYUSD','USDD','USDE','USDS','USD1','GUSD','FRAX','LUSD','EURC','EURT','RLUSD','USDG','USYC','BUIDL','USDY','SUSDE','SUSDS','WBTC','WETH','STETH','WSTETH','WEETH','CBBTC','WBETH','RETH','METH','EZETH','RSETH','SOLVBTC','LBTC','BSC-USD',
+  'USDF','USDGO','USD0','USX','YLDS','A7A5','GHO','EUTBL','EURSAFO','USTB','OUSG','JTRSY','JAAA','BCAP','FIGR_HELOC',
+  // roba — zlato se miče pa ga volatilnost ne hvata; jedina obrana je ime, i ta grana trune
+  'XAUT','PAXG']);
+
+// .v2 = reset spremljenih postavki. Stari default je skrivao "% iznad 4h" na grafu,
+// pa je taj izbor ostao zapisan kod svakoga tko je app već otvorio.
+// Supabase konfiguracija je poseban ključ i ostaje netaknuta.
+const LS={set:'emaBreadth.settings.v2', cfg:'emaBreadth.supabase', uni:'emaBreadth.universe.v2', seen:'emaBreadth.seen'};
+
+// ============ pragovi panela "Promjene" ============
+// Mijenjaj brojeve ovdje — ništa drugo se ne treba dirati.
+const PROMJENE={
+  // Skok ranga se mjeri OMJEROM, ne brojem mjesta. Razlog: 120→90 i 8→6 su
+  // isti potez u novcu, a po broju mjesta bi 20 mjesta u repu pojelo cijeli
+  // popis dok bi pravi potez na vrhu ispao nevidljiv.
+  rangGore: 0.75,    // rang mora biti bar 25% bolji (120→90, 40→30, 8→6)
+  rangDolje: 1.34,   // ili 34% gori — isti omjer u drugom smjeru
+  maxPomaka: 10,     // koliko pomaka po sekciji; ulasci/izlasci nisu ograničeni
+};
+const CHG_WINS={'7d':7,'30d':30,'90d':90};
+// Redoslijed prikaza: 1D prvo. Režim je važniji od taktike, pa ide gore.
+// (TFS je redoslijed računanja i ostaje 4h,1d — ne diraj, veže se na bazu.)
+const SHOW_TFS=['1d','4h'];
+let settings=Object.assign({topN:120, emaLen:200, range:'6m', hidden:[], src:'db', auto:true, autoMin:30, chgWin:'7d'},
+  JSON.parse(localStorage.getItem(LS.set)||'{}'));
+let cfg=JSON.parse(localStorage.getItem(LS.cfg)||'{"url":"","key":""}');
+
+let markets=new Map(), coins=[], live=new Map();  // base -> {'4h':bar,'1d':bar}
+let liveAgg=null;        // agregat "sada"
+let histDB=[], histCalc=[];   // iskrena (Supabase) i pristrana (izračunata)
+let btcDaily=new Map();
+let loading=false, sortKey='rank', sortDir=1;
+
+const $=id=>document.getElementById(id);
+const saveSet=()=>localStorage.setItem(LS.set,JSON.stringify(settings));
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const dayOf=ts=>Math.floor(ts/DAY)*DAY;
+const fmtPct=(x,sign=false)=>(x==null||!isFinite(x))?'—':(sign&&x>0?'+':'')+x.toFixed(2)+'%';
+const fmtDate=ts=>new Date(ts).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+const ymd=ts=>new Date(ts).toISOString().slice(0,10);
+
+// Broj decimala prati veličinu cijene: BTC ne treba osam decimala,
+// PEPE bez njih ostane $0.00.
+function fmtPrice(p){
+  if(p==null||!isFinite(p)) return '—';
+  const d = p>=1000?0 : p>=1?2 : p>=0.1?4 : p>=0.001?6 : 8;
+  return '$'+p.toLocaleString('en-US',{maximumFractionDigits:d});
+}
+// CoinGecko traži svoj id ("ethereum"), ne ticker — id dolazi iz istog
+// /coins/markets poziva kojim gradimo univerzum. Ako ga nema (stara
+// spremljena lista bez id-a), link ide na pretragu umjesto na 404.
+const cgUrl=c=>c.cgId
+  ? `https://www.coingecko.com/en/coins/${encodeURIComponent(c.cgId)}`
+  : `https://www.coingecko.com/en/search?query=${encodeURIComponent(c.base)}`;
+
+// Zadnji dan koji SMIJE stajati u zapisu: JUČER po UTC-u.
+// Današnja svijeća je u tijeku, snapshot za danas bi bio lažan i Edge
+// Function ga odbija. Znači: graf nikad ne pokazuje današnji datum —
+// to nije kvar. Kvar je kad zadnji red nije jučerašnji.
+const expectedLastDay=()=>dayOf(Date.now())-DAY;
+
+// Koji dani fale između prvog zapisa i jučer.
+function missingDays(){
+  if(!histDB.length) return [];
+  const have=new Set(histDB.map(d=>d.ts)), out=[];
+  for(let ts=histDB[0].ts; ts<=expectedLastDay(); ts+=DAY) if(!have.has(ts)) out.push(ts);
+  return out;
+}
+function showErr(m){const e=$('errBox'); e.textContent=m; e.style.display='block';}
+function hideErr(){$('errBox').style.display='none';}
+
+async function fetchJSON(url,retries=2){
+  for(let i=0;i<=retries;i++){
+    const r=await fetch(url);
+    if(r.status===429||r.status===418){await new Promise(s=>setTimeout(s,2500*(i+1)));continue;}
+    if(!r.ok) throw new Error('HTTP '+r.status+' za '+url.split('?')[0]);
+    return r.json();
+  }
+  throw new Error('Previše zahtjeva — pričekaj minutu.');
+}
+
+// ============ volatilnost — obrana od stableova po PONAŠANJU ============
+// MORA biti identično supabase/functions/breadth-snapshot/index.ts.
+// Prikovan coin (dnevna st.dev. < 0.5%) ne može trendirati pa ne ulazi u izračun.
+function stdevPct(closes){
+  if(closes.length<30) return null;
+  const start=Math.max(1,closes.length-200), rets=[];
+  for(let i=start;i<closes.length;i++) rets.push(closes[i]/closes[i-1]-1);
+  const m=rets.reduce((s,x)=>s+x,0)/rets.length;
+  return Math.sqrt(rets.reduce((s,x)=>s+(x-m)**2,0)/rets.length)*100;
+}
+const PIN_VOL_1D=0.5, PIN_VOL_4H=0.2;
+let pinnedSet=new Set();
+
+// ============ EMA ============
+function emaSeries(closes,len){
+  const out=new Array(closes.length).fill(null);
+  if(closes.length<len) return out;
+  let e=0; for(let i=0;i<len;i++) e+=closes[i]; e/=len; out[len-1]=e;
+  const k=2/(len+1);
+  for(let i=len;i<closes.length;i++){e=closes[i]*k+e*(1-k); out[i]=e;}
+  return out;
+}
+
+// ============ parovi + univerzum ============
+async function loadMarkets(){
+  const res=await Promise.allSettled([
+    fetchJSON(BINANCE+'/api/v3/exchangeInfo').then(d=>{
+      const m=new Map();
+      for(const s of d.symbols){
+        if(s.status!=='TRADING'||s.quoteAsset!=='USDT') continue;
+        if(/(UP|DOWN|BULL|BEAR)$/.test(s.baseAsset)&&s.baseAsset.length>4) continue;
+        m.set(s.baseAsset.toUpperCase(),s.symbol);
+      } return m;}),
+    fetchJSON(BYBIT+'/v5/market/instruments-info?category=spot&limit=1000').then(d=>{
+      const m=new Map();
+      for(const s of d.result.list){if(s.status!=='Trading'||s.quoteCoin!=='USDT') continue; m.set(s.baseCoin.toUpperCase(),s.symbol);} return m;})
+  ]);
+  markets.clear();
+  const srcs=['binance','bybit'];
+  res.forEach((r,i)=>{if(r.status==='fulfilled') for(const [b,s] of r.value) if(!markets.has(b)) markets.set(b,{src:srcs[i],symbol:s});});
+  if(!markets.size) throw new Error('Ni Binance ni Bybit ne odgovaraju — provjeri internet.');
+}
+
+async function loadUniverse(topN){
+  const pages=topN>100?[1,2]:[1];
+  let cg=[];
+  try{
+    for(const p of pages) cg=cg.concat(await fetchJSON(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=${p}&sparkline=false`));
+    localStorage.setItem(LS.uni,JSON.stringify(cg.map(c=>({s:c.symbol,n:c.name,r:c.market_cap_rank,i:c.id}))));
+  }catch(e){
+    const cache=JSON.parse(localStorage.getItem(LS.uni)||'null');
+    if(!cache) throw new Error('CoinGecko ne odgovara i nemam spremljenu listu.');
+    showErr('CoinGecko ne odgovara — koristim zadnju spremljenu listu coina.');
+    cg=cache.map(c=>({symbol:c.s,name:c.n,market_cap_rank:c.r,id:c.i}));
+  }
+  const list=[]; let skStable=0; const noPair=[];
+  for(const c of cg){
+    if(c.market_cap_rank==null||c.market_cap_rank>topN) continue;
+    const base=String(c.symbol).toUpperCase();
+    if(STABLES.has(base)){skStable++;continue;}
+    const mk=markets.get(base);
+    // N pluta pošteno. Prag je fiksan na topN — ne posežemo dublje
+    // u rang listu da bi nazivnik ispao okrugao.
+    if(!mk){noPair.push(base);continue;}
+    list.push({...mk,base,name:c.name,rank:c.market_cap_rank,cgId:c.id||null});
+  }
+  coins=list;
+  return {skStable,noPair};
+}
+
+// ============ živi podaci + pristrana skica ============
+async function loadCoinSeries(c,tf,emaLen){
+  const d = c.src==='binance'
+    ? (await fetchJSON(`${BINANCE}/api/v3/klines?symbol=${c.symbol}&interval=${tf}&limit=1000`)).map(k=>({ts:k[0],close:parseFloat(k[4])}))
+    : (await fetchJSON(`${BYBIT}/v5/market/kline?category=spot&symbol=${c.symbol}&interval=${BYBIT_TF[tf]}&limit=1000`)).result.list.map(k=>({ts:+k[0],close:parseFloat(k[4])})).reverse();
+  if(d.length<emaLen) return null;
+  const closes=d.map(b=>b.close);
+  const emas=emaSeries(closes,emaLen);
+  const out=new Map(); out.vol=stdevPct(closes);
+  const off=CLOSING_OFFSET[tf];
+  for(let i=0;i<d.length;i++){
+    if(emas[i]==null) continue;
+    const b=d[i], isLast=(i===d.length-1);
+    if(!isLast && (b.ts%DAY)!==off) continue;
+    out.set(dayOf(b.ts),{close:b.close,ema:emas[i],above:b.close>=emas[i],dist:(b.close/emas[i]-1)*100,live:isLast});
+  }
+  return out;
+}
+
+function aggregateDay(getBar){
+  const rec={pct:{},n:{},distAll:{},distAbove:{},tier:null,n_full:0};
+  for(const tf of TFS){
+    let above=0,cnt=0,sumAll=0,sumAbove=0,nAbove=0;
+    for(const c of coins){
+      if(pinnedSet.has(c.base)) continue;
+      const b=getBar(c,tf); if(!b) continue;
+      cnt++; sumAll+=b.dist;
+      if(b.above){above++;nAbove++;sumAbove+=b.dist;}
+    }
+    rec.n[tf]=cnt;
+    rec.pct[tf]=cnt?above/cnt*100:null;
+    rec.distAll[tf]=cnt?sumAll/cnt:null;
+    rec.distAbove[tf]=nAbove?sumAbove/nAbove:null;
+  }
+  let pts=0,nf=0;
+  for(const c of coins){
+    if(pinnedSet.has(c.base)) continue;
+    if(!TFS.every(tf=>getBar(c,tf))) continue;
+    nf++; for(const tf of TFS) if(getBar(c,tf).above) pts++;
+  }
+  rec.n_full=nf;
+  rec.pts=pts;                                    // sirovi zbroj bodova — za prikaz izračuna
+  rec.tier=nf>=8?pts/(nf*TFS.length)*100:null;
+  return rec;
+}
+
+function buildCalcHist(){
+  const days=new Set();
+  for(const m of live.values()) for(const tf of TFS) if(m[tf]) for(const ts of m[tf].keys()) days.add(ts);
+  const out=[];
+  for(const ts of [...days].sort((a,b)=>a-b)){
+    const rec=aggregateDay((c,tf)=>live.get(c.base)?.[tf]?.get(ts));
+    rec.ts=ts; rec.btc=btcDaily.get(ts)??null;
+    out.push(rec);
+  }
+  return out;
+}
+
+// ============ iskrena povijest iz Supabasea ============
+async function loadDBHist(){
+  if(!cfg.url||!cfg.key) return {rows:[], reason:'nije-konfigurirano'};
+  const u=cfg.url.replace(/\/+$/,'');
+  const sel='date,tier_score,n_full,pct_above_4h,pct_above_1d,n_4h,n_1d,avg_dist_all_4h,avg_dist_all_1d,avg_dist_above_4h,avg_dist_above_1d,btc_price,top_n,ema_len,n_universe,backfilled';
+  const r=await fetch(`${u}/rest/v1/market_breadth?select=${sel}&order=date.asc`,
+    {headers:{apikey:cfg.key, Authorization:'Bearer '+cfg.key}});
+  if(!r.ok) throw new Error(`Supabase: HTTP ${r.status} — provjeri URL i anon ključ.`);
+  const rows=await r.json();
+  return {rows:rows.map(d=>({
+    ts: Date.parse(d.date+'T00:00:00Z'),
+    tier: d.tier_score, n_full: d.n_full,
+    pct:{'4h':d.pct_above_4h,'1d':d.pct_above_1d},
+    n:{'4h':d.n_4h,'1d':d.n_1d},
+    distAll:{'4h':d.avg_dist_all_4h,'1d':d.avg_dist_all_1d},
+    distAbove:{'4h':d.avg_dist_above_4h,'1d':d.avg_dist_above_1d},
+    btc: d.btc_price, top_n:d.top_n, ema_len:d.ema_len, backfilled:d.backfilled
+  }))};
+}
+
+// ============ promjene sastava i režima ============
+// Sve se računa iz `raw` kolone koju Edge Function ionako sprema svaki dan:
+// cijeli Top 120 s rangom, cijenom i above-flagom, point-in-time.
+// Dohvaćaju se SAMO 2-3 ciljana dana, ne cijela povijest.
+let chg={state:'init', err:null, ends:null, seenEnds:null, seenDate:null,
+         entrants:[], exits:[], up:[], down:[], byBase:new Map(), newCount:0, nNow:0, nThen:0};
+let seen=JSON.parse(localStorage.getItem(LS.seen)||'null');   // {date:'YYYY-MM-DD'}
+
+// Backfillani red ima CIJENE od ciljanog dana, ali RANG od dana kad je backfill
+// pokrenut (funkcija tad povuče današnji CoinGecko). Ako takav red uđe u
+// usporedbu, izmislit će skokove ranga kojih nije bilo. Zato ispada iz oba kraja.
+const usableHist=()=>histDB.filter(d=>!d.backfilled);
+
+// Baza usporedbe: najnoviji red koji NIJE noviji od cilja. Ako je povijest
+// kraća od prozora, uzima se najstariji red — i to se ispiše, ne prešuti.
+function pickEnds(days){
+  const u=usableHist();
+  if(u.length<2) return null;
+  const last=u[u.length-1], target=last.ts-days*DAY;
+  let base=null;
+  for(const d of u){ if(d.ts<=target) base=d; }
+  const short=!base;
+  if(short) base=u[0];
+  if(base.ts>=last.ts) return null;
+  return {last, base, short, days:Math.round((last.ts-base.ts)/DAY)};
+}
+
+// Tri odvojena eq-upita umjesto jednog in.(...): dohvat ide paralelno pa je
+// jednako brz, a `eq` je najjednostavniji oblik koji PostgREST ima — nema
+// citiranja ni escapea koji bi mogao tiho vratiti prazan skup.
+async function loadRawRows(dates){
+  const uniq=[...new Set(dates)].filter(Boolean);
+  if(!cfg.url||!cfg.key||!uniq.length) return new Map();
+  const u=cfg.url.replace(/\/+$/,''), h={apikey:cfg.key, Authorization:'Bearer '+cfg.key};
+  const out=new Map();
+  await Promise.all(uniq.map(async d=>{
+    const r=await fetch(`${u}/rest/v1/market_breadth?select=date,raw&date=eq.${d}&limit=1`,{headers:h});
+    if(!r.ok) throw new Error(`Supabase: HTTP ${r.status} pri dohvatu sastava za ${d}.`);
+    const rows=await r.json();
+    if(rows.length && rows[0].raw) out.set(d, rows[0].raw);
+  }));
+  return out;
+}
+
+// raw niz -> mapa base -> stanje tog dana
+function rawIndex(raw){
+  const m=new Map();
+  for(const c of raw||[]){
+    const t1=c.tf?.['1d'], t4=c.tf?.['4h'];
+    m.set(c.base,{
+      rank:c.rank, pinned:!!c.pinned,
+      a1d:t1?!!t1.above:null,
+      // 1d close je zatvorena dnevna cijena — usporediva između dva dana.
+      close:t1?t1.close:(t4?t4.close:null),
+      dist:t1?t1.dist:null,
+    });
+  }
+  return m;
+}
+
+// Jezgra: što se promijenilo između dva snimljena dana.
+// Jedan redak po coinu, oznake objašnjavaju ZAŠTO je na popisu.
+// Poredak ide po stvarnoj promjeni cijene, ne po rangu — rang je relativan
+// (u padu se popneš a da se nisi maknuo), cijena nije.
+function diffDays(nowRaw, thenRaw){
+  const A=rawIndex(nowRaw), B=rawIndex(thenRaw);
+  const entrants=[], exits=[], movers=[], byBase=new Map();
+  for(const [base,a] of A){
+    const b=B.get(base);
+    if(!b){ entrants.push({base, rank:a.rank, pinned:a.pinned}); byBase.set(base,{novi:true, rankDelta:null}); continue; }
+    const rankDelta=b.rank-a.rank;                       // + = popeo se
+    byBase.set(base,{novi:false, rankDelta});
+    if(a.pinned) continue;                               // prikovan ne trendira — nema što prijeći
+    const chgPct=(b.close!=null&&a.close!=null&&b.close>0)?(a.close/b.close-1)*100:null;
+    const tags=[];
+    if(a.a1d===true && b.a1d===false) tags.push('cross_up');
+    if(a.a1d===false && b.a1d===true) tags.push('cross_down');
+    if(b.rank>0 && a.rank/b.rank<=PROMJENE.rangGore) tags.push('rang_gore');
+    if(b.rank>0 && a.rank/b.rank>=PROMJENE.rangDolje) tags.push('rang_dolje');
+    if(tags.length) movers.push({base, rank:a.rank, rankDelta, chgPct, dist:a.dist, tags});
+  }
+  for(const [base,b] of B) if(!A.has(base)) exits.push({base, rank:b.rank});
+  // Veličina univerzuma na oba kraja. Ulasci i izlasci se NE moraju poklapati:
+  // između "Top 120" i zapisa stoje dva filtra (stable/wrapped i nema spot para),
+  // pa N pluta. Bez ova dva broja izgleda kao da se coini gube.
+  const nNow=A.size, nThen=B.size;
+  const up=movers.filter(m=>m.tags.some(t=>t==='cross_up'||t==='rang_gore'))
+                 .sort((x,y)=>(y.chgPct??-1e9)-(x.chgPct??-1e9));
+  const down=movers.filter(m=>m.tags.some(t=>t==='cross_down'||t==='rang_dolje'))
+                   .sort((x,y)=>(x.chgPct??1e9)-(y.chgPct??1e9));
+  entrants.sort((x,y)=>x.rank-y.rank); exits.sort((x,y)=>x.rank-y.rank);
+  return {entrants, exits, up, down, byBase, nNow, nThen};
+}
+
+async function loadChanges(){
+  chg={state:'load', err:null, ends:null, seenEnds:null, seenDate:seen?.date??null,
+       entrants:[], exits:[], up:[], down:[], byBase:new Map(), newCount:0, nNow:0, nThen:0};
+  renderChanges();
+  try{
+    if(!cfg.url||!cfg.key){ chg.state='nocfg'; return renderChanges(); }
+    const ends=pickEnds(CHG_WINS[settings.chgWin]??7);
+    if(!ends){ chg.state='short'; return renderChanges(); }
+    // Treći datum: zadnje što si vidio — za značku "novo od zadnjeg posjeta".
+    const lastYmd=ymd(ends.last.ts), baseYmd=ymd(ends.base.ts);
+    const seenYmd=(seen&&seen.date&&seen.date<lastYmd&&usableHist().some(d=>ymd(d.ts)===seen.date))?seen.date:null;
+    const raws=await loadRawRows([lastYmd, baseYmd, seenYmd]);
+    const nowRaw=raws.get(lastYmd), baseRaw=raws.get(baseYmd);
+    if(!nowRaw||!baseRaw) throw new Error('Redovi postoje, ali `raw` je prazan — snapshot je star od prije te kolone.');
+    Object.assign(chg, diffDays(nowRaw, baseRaw), {state:'ok', ends});
+    if(seenYmd && raws.get(seenYmd)){
+      const d=diffDays(nowRaw, raws.get(seenYmd));
+      chg.newCount=d.entrants.length+d.exits.length+d.up.length+d.down.length;
+      chg.seenEnds=seenYmd;
+    }
+    // Prvi posjet: zapamti gdje si stao, ali ne izmišljaj "novosti".
+    if(!seen){ seen={date:lastYmd}; localStorage.setItem(LS.seen,JSON.stringify(seen)); }
+    chg.seenDate=seen.date;
+  }catch(e){ chg.state='err'; chg.err=e.message; }
+  renderChanges(); renderTable();
+}
+
+// ============ glavni refresh ============
+async function refresh(){
+  if(loading) return;
+  loading=true; hideErr(); $('btnRefresh').disabled=true;
+  const emaLen=+settings.emaLen, topN=+settings.topN;
+  const t0=performance.now();
+  try{
+    $('status').textContent='Dohvaćam parove i listu coina…';
+    if(!markets.size) await loadMarkets();
+    const skip=await loadUniverse(topN);
+
+    live.clear(); btcDaily.clear();
+    const tasks=[];
+    for(const c of coins) for(const tf of TFS) tasks.push({c,tf});
+    let done=0, idx=0;
+    $('progWrap').style.display='block';
+    async function worker(){
+      while(idx<tasks.length){
+        const t=tasks[idx++];
+        try{
+          const m=await loadCoinSeries(t.c,t.tf,emaLen);
+          if(!live.has(t.c.base)) live.set(t.c.base,{});
+          if(m) live.get(t.c.base)[t.tf]=m;
+        }catch(e){}
+        done++;
+        $('progFill').style.width=(done/tasks.length*100).toFixed(1)+'%';
+        $('status').textContent=`Računam EMA${emaLen}… ${done}/${tasks.length}`;
+      }
+    }
+    const btcP=fetchJSON(BINANCE+'/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000')
+      .then(d=>{for(const k of d) btcDaily.set(dayOf(k[0]),parseFloat(k[4]));}).catch(()=>{});
+    const dbP=loadDBHist().catch(e=>({rows:[],reason:e.message}));
+
+    const [,dbRes]=await Promise.all([Promise.all([...Array.from({length:12},worker),btcP]), dbP]);
+    $('progWrap').style.display='none';
+
+    // prikovani coini — isti kriterij kao Edge Function
+    pinnedSet=new Set();
+    for(const [base,m] of live){
+      const v1d=m['1d']?.vol, v4h=m['4h']?.vol;
+      if(v1d!=null ? v1d<PIN_VOL_1D : (v4h!=null && v4h<PIN_VOL_4H)) pinnedSet.add(base);
+    }
+
+    // "sada": zadnji dostupni bar svakog coina (uključuje svijeću u tijeku)
+    const lastOf=(c,tf)=>{const m=live.get(c.base)?.[tf]; if(!m) return null; return [...m.values()].pop();};
+    liveAgg=aggregateDay(lastOf);
+    liveAgg.ts=Date.now(); liveAgg.btc=[...btcDaily.values()].pop()??null;
+
+    histCalc=buildCalcHist();
+    histDB=dbRes.rows||[];
+    if(dbRes.reason==='nije-konfigurirano' && settings.src==='db'){ settings.src='calc'; }
+    else if(!histDB.length && settings.src==='db' && dbRes.reason){ showErr('Iskrena povijest: '+dbRes.reason); }
+
+    const secs=((performance.now()-t0)/1000).toFixed(1);
+    $('status').textContent=`Gotovo za ${secs}s · ${tasks.length} poziva · univerzum: ${coins.length-pinnedSet.size} coina `+
+      `(izbačeno ${skip.skStable} stable/wrapped, ${skip.noPair.length} bez para, `+
+      `${pinnedSet.size} prikovano po volatilnosti${pinnedSet.size?': '+[...pinnedSet].sort().join(', '):''}) · `+
+      `iskrenih točaka u bazi: ${histDB.length}`;
+    render();
+    loadChanges();   // ide sam za sobom — ne blokira prikaz gaugea i tablice
+  }catch(e){
+    showErr(e.message); $('status').textContent='Greška.'; $('progWrap').style.display='none';
+  }finally{ loading=false; $('btnRefresh').disabled=false; scheduleAuto(); }
+}
+
+// ============ automatsko osvježavanje ============
+// Sat gleda apsolutni trenutak, ne setInterval(refresh): preglednik uspori
+// tajmere u pozadinskom tabu, pa bi razmak plutao i po nekoliko minuta.
+// Odbrojavanje kreće tek kad dohvat završi — inače bi se ciklusi preklapali
+// na sporoj vezi (jedan prolaz je ~240 poziva na burzu).
+let nextRun=null;
+function autoLabel(ms){
+  const s=Math.max(0,Math.round(ms/1000));
+  return s>=60 ? `${Math.floor(s/60)} min ${String(s%60).padStart(2,'0')} s` : `${s} s`;
+}
+function scheduleAuto(){
+  nextRun = settings.auto ? Date.now()+(+settings.autoMin||30)*60000 : null;
+  tickAuto();
+}
+function tickAuto(){
+  const el=$('autoStatus');
+  if(!settings.auto){ el.textContent=''; return; }
+  if(loading){ el.textContent='· auto: osvježavam…'; return; }
+  if(nextRun==null){ scheduleAuto(); return; }
+  const left=nextRun-Date.now();
+  if(left<=0){
+    // U pozadinskom tabu se ne troši kvota burzi — čeka povratak na tab.
+    if(document.hidden){ el.textContent='· auto: čeka da se vratiš na ovaj tab'; return; }
+    refresh();
+    return;
+  }
+  el.textContent=`· sljedeće osvježavanje za ${autoLabel(left)}`;
+}
+setInterval(tickAuto,1000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tickAuto(); });
+
+// ============ gauge ============
+function scoreColor(v){ if(v==null) return '#8b96a8'; if(v>=60) return '#22c55e'; if(v>=40) return '#f5b942'; return '#ef4444'; }
+function drawGauge(v){
+  const c=$('gaugeC'), ctx=c.getContext('2d');
+  const W=c.width,H=c.height,cx=W/2,cy=H*0.78,R=W*0.40,lw=W*0.085;
+  ctx.clearRect(0,0,W,H); ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,2*Math.PI); ctx.strokeStyle='#1a2130'; ctx.lineWidth=lw; ctx.stroke();
+  for(const [a,b,col] of [[0,40,'rgba(239,68,68,.30)'],[40,60,'rgba(245,185,66,.30)'],[60,100,'rgba(34,197,94,.30)']]){
+    ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI+(a/100)*Math.PI,Math.PI+(b/100)*Math.PI);
+    ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.stroke();
+  }
+  if(v!=null){
+    ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,Math.PI+(Math.max(0,Math.min(100,v))/100)*Math.PI);
+    ctx.strokeStyle=scoreColor(v); ctx.lineWidth=lw; ctx.stroke();
+  }
+  ctx.fillStyle='#8b96a8'; ctx.font='500 15px Segoe UI'; ctx.textAlign='center';
+  ctx.fillText('0',cx-R,cy+24); ctx.fillText('100',cx+R,cy+24);
+}
+
+function render(){
+  drawGauge(liveAgg?liveAgg.tier:null);
+  $('gVal').textContent=liveAgg&&liveAgg.tier!=null?liveAgg.tier.toFixed(0):'—';
+  $('gVal').style.color=scoreColor(liveAgg?liveAgg.tier:null);
+  // Gauge je ŽIV (svijeća u tijeku), zapis je ZATVOREN dan. Ne prikazujemo
+  // oba broja jedan pored drugog — nego RAZLIKU, jer je to jedino operativno:
+  // "gdje smo danas u odnosu na jučerašnji close".
+  const lastDB = histDB.length ? histDB[histDB.length-1] : null;
+  // Ako pogled nije pod istim pravilima kao zapis, gauge i graf mjere
+  // različite univerzume. Razlika između njih tad NIJE informacija o
+  // tržištu nego o tome što si pomaknuo dropdown — pa se ne prikazuje.
+  const mismatch = !!(lastDB && lastDB.top_n!=null &&
+    (+settings.topN!==lastDB.top_n || +settings.emaLen!==lastDB.ema_len));
+  let delta='';
+  if(!mismatch && liveAgg && liveAgg.tier!=null && lastDB && lastDB.tier!=null){
+    const d=liveAgg.tier-lastDB.tier;
+    const col=d>0?'var(--green)':d<0?'var(--red)':'var(--muted)';
+    // Datum se ISPISUJE, ne pretpostavlja. Ako cron preskoči dan, ovdje je
+    // prije pisalo "od jučerašnjeg closea" i za zapis star tjedan dana.
+    const kasni=Math.round((expectedLastDay()-lastDB.ts)/DAY);
+    delta=`<br><br><span style="display:inline-block;border-top:1px solid var(--border);padding-top:8px;color:var(--muted);font-size:.72rem">`
+      +`od closea ${fmtDate(lastDB.ts)} (${lastDB.tier.toFixed(1)})`
+      +(kasni>0?` <b style="color:var(--red)">· zapis kasni ${kasni} ${kasni===1?'dan':'dana'}</b>`:'')+`<br>`
+      +`<b style="color:${col};font-size:1.3rem">${d>0?'+':''}${d.toFixed(1)}</b>`
+      +`<span style="font-size:.72rem"> boda · ${d>0?'+':''}${(d/lastDB.tier*100).toFixed(1)}%</span></span>`;
+  }
+  $('gSub').innerHTML=liveAgg
+    ? `<span style="color:var(--muted)">živo · svijeća u tijeku (${fmtDate(Date.now())})</span><br>`
+      + `<span title="Svaki coin: 1 bod po TF-u iznad EMA200. Zbroj ÷ (broj coina × 2) × 100.">`
+      + `${liveAgg.pts??'?'} bodova od ${liveAgg.n_full*2} mogućih</span><br>`
+      + `<span style="font-size:.7rem">${liveAgg.n_full} coina × 2 TF-a</span>`
+      + delta
+    : '—';
+
+  const m=$('metrics'); m.innerHTML='';
+  if(liveAgg){
+    const show=SHOW_TFS.filter(tf=>TFS.includes(tf));
+    for(const tf of show){
+      const p=liveAgg.pct[tf], n=liveAgg.n[tf]||0;
+      m.insertAdjacentHTML('beforeend',`
+      <div class="metric"><div class="k">Iznad EMA200 — ${TF_LABEL[tf]}</div>
+      <div class="v" style="color:${scoreColor(p)}">${p==null?'—':p.toFixed(1)+'%'}</div>
+      <div class="n">${p==null?'—':Math.round(p/100*n)+' od '+n+' coina'}</div></div>`);
+    }
+    for(const tf of show){
+      const a=liveAgg.distAll[tf], b=liveAgg.distAbove[tf];
+      m.insertAdjacentHTML('beforeend',`
+      <div class="metric"><div class="k">Jačina — ${TF_LABEL[tf]}</div>
+      <div class="v" style="color:${a>0?'var(--green)':'var(--red)'};font-size:1.05rem">${fmtPct(a,true)}</div>
+      <div class="n">neto svi · trendajući ${fmtPct(b,true)}</div></div>`);
+    }
+    m.insertAdjacentHTML('beforeend',`
+      <div class="metric"><div class="k">BTC</div>
+      <div class="v" style="font-size:1.05rem">${liveAgg.btc?'$'+liveAgg.btc.toLocaleString('en-US',{maximumFractionDigits:0}):'—'}</div>
+      <div class="n">referenca</div></div>`);
+    // Zadnji dan je važniji od broja dana: broj raste i kad je zapis star.
+    const lastTs=histDB.length?histDB[histDB.length-1].ts:null;
+    const stale=lastTs!=null && lastTs<expectedLastDay();
+    m.insertAdjacentHTML('beforeend',`
+      <div class="metric"><div class="k">Iskrena povijest</div>
+      <div class="v" style="font-size:1.05rem;color:${!histDB.length?'var(--muted)':stale?'var(--red)':'var(--green)'}">${histDB.length} ${histDB.length===1?'dan':'dana'}</div>
+      <div class="n">${histDB.length?fmtDate(histDB[0].ts)+' → <b style="color:'+(stale?'var(--red)':'inherit')+'">'+fmtDate(lastTs)+'</b>':'cron još ne radi'}</div></div>`);
+  }
+  updateStaleWarn(); updateMixWarn(); updateBiasWarn(); buildChips(); renderLegend(); drawChart(); renderTable();
+}
+
+// ============ prikaz panela "Promjene" ============
+const TAG_LBL={cross_up:['up','▲ EMA200 1D'], cross_down:['down','▼ EMA200 1D'],
+               rang_gore:['up','▲ RANG'], rang_dolje:['down','▼ RANG']};
+const rankArrow=d=>d==null?'<span style="color:var(--muted)">—</span>'
+  :d>0?`<span style="color:var(--green)">▲${d}</span>`
+  :d<0?`<span style="color:var(--red)">▼${-d}</span>`:`<span style="color:var(--muted)">0</span>`;
+
+function chgRow(o,dir){
+  const tags=(o.tags||[]).map(t=>`<span class="tag ${TAG_LBL[t][0]}">${TAG_LBL[t][1]}</span>`).join(' ');
+  const c=o.chgPct;
+  const num=c==null?'':`<span class="num" style="color:${c>=0?'var(--green)':'var(--red)'}">${fmtPct(c,true)}</span>`;
+  return `<div class="chg-row"><a class="cg b" href="${esc(cgUrl({base:o.base,cgId:cgIdOf(o.base)}))}" target="_blank" rel="noopener noreferrer">${esc(o.base)}</a>`
+    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>${tags}`
+    +`<span style="font-size:.72rem">${rankArrow(o.rankDelta)}</span>${num}</div>`;
+}
+function chgSimple(o,kind){
+  return `<div class="chg-row"><a class="cg b" href="${esc(cgUrl({base:o.base,cgId:cgIdOf(o.base)}))}" target="_blank" rel="noopener noreferrer">${esc(o.base)}</a>`
+    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>`
+    +`<span class="tag ${kind==='in'?'new':'down'}">${kind==='in'?'NOVI U TOP '+settings.topN:'ISPAO'}</span>`
+    +(o.pinned?`<span class="tag pin">PRIKOVAN</span>`:'')+`</div>`;
+}
+// cgId iz trenutnog univerzuma; coin koji je ispao ga više nema pa link ide na pretragu.
+const cgIdOf=b=>coins.find(c=>c.base===b)?.cgId||null;
+
+function renderChanges(){
+  const g=$('chgWinGroup'); g.innerHTML='';
+  for(const k of Object.keys(CHG_WINS)){
+    const el=document.createElement('div');
+    el.className='chip'+(settings.chgWin===k?' on':'');
+    el.textContent=k;
+    el.onclick=()=>{settings.chgWin=k; saveSet(); loadChanges();};
+    g.appendChild(el);
+  }
+  const badge=$('chgBadge'), sub=$('chgSub'), body=$('chgBody');
+  // Redak stoji UVIJEK kad panel radi. Ako ovdje nema ničega, panel je pao —
+  // a to je jedina poruka koju tišina smije nositi.
+  const dOf=s=>fmtDate(Date.parse(s+'T00:00:00Z'));
+  badge.innerHTML = chg.state!=='ok' ? ''
+    : chg.newCount>0
+      ? `<span class="badge-new">${chg.newCount} ${chg.newCount===1?'novost':'novosti'} od ${dOf(chg.seenEnds)}</span>`
+        +` <button class="ghost" id="btnSeen" style="padding:3px 9px;font-size:.72rem">Označi kao viđeno</button>`
+      : chg.seenEnds
+        ? `<span class="seen-quiet">od zadnjeg posjeta (${dOf(chg.seenEnds)}): nema novosti</span>`
+        : `<span class="seen-quiet">sve viđeno do ${fmtDate(chg.ends.last.ts)} — sljedeći zapis stiže u 00:10 UTC</span>`;
+  const b=$('btnSeen');
+  if(b) b.onclick=()=>{
+    seen={date:ymd(chg.ends.last.ts)}; localStorage.setItem(LS.seen,JSON.stringify(seen));
+    // seenEnds mora pasti s njima, inače redak i dalje pokazuje stari datum.
+    chg.newCount=0; chg.seenEnds=null; chg.seenDate=seen.date; renderChanges();
+  };
+
+  const msg=t=>{ sub.textContent=''; body.innerHTML=`<div class="chg-empty">${t}</div>`; };
+  if(chg.state==='load')  return msg('Učitavam sastav…');
+  if(chg.state==='nocfg') return msg('Traži Supabase — promjene se čitaju iz snimljenog zapisa, ne iz skice. Postavi URL i ključ gumbom "Supabase…".');
+  if(chg.state==='short') return msg('Treba bar dva nebackfillana dana u zapisu. Panel se pali sam čim ih bude.');
+  if(chg.state==='err')   return msg('Greška: '+chg.err);
+  if(chg.state!=='ok')    return msg('—');
+
+  const e=chg.ends;
+  sub.innerHTML=`Zapis <b>${fmtDate(e.base.ts)}</b> → <b>${fmtDate(e.last.ts)}</b> (${e.days} ${e.days===1?'dan':'dana'})`
+    +(e.short?` · <b style="color:var(--amber)">povijest je kraća od ${settings.chgWin} — uspoređujem s najstarijim danom koji imam</b>`:'')
+    +` · univerzum <b>${chg.nThen} → ${chg.nNow}</b> coina`
+    +(chg.nNow!==chg.nThen
+        ? ` <span title="Između Top ${settings.topN} i zapisa stoje dva filtra: stable/wrapped i nema spot para. Zato broj ulazaka i izlazaka NE mora biti jednak.">(${chg.nNow>chg.nThen?'+':''}${chg.nNow-chg.nThen} — zato ulasci i izlasci nisu izjednačeni)</span>`
+        : '')
+    +` · rang skok mjeri se omjerom (${Math.round((1-PROMJENE.rangGore)*100)}%), poredak po stvarnoj promjeni cijene`
+    +` · prikovani i backfillani dani ne ulaze`;
+
+  const cut=a=>a.slice(0,PROMJENE.maxPomaka);
+  const more=a=>a.length>PROMJENE.maxPomaka?`<div class="chg-empty">+ još ${a.length-PROMJENE.maxPomaka} ispod praga prikaza</div>`:'';
+  const up=cut(chg.up), down=cut(chg.down);
+  body.innerHTML=`<div class="chg-grid">
+    <div class="chg-col"><h4>Ojačali</h4>
+      ${chg.entrants.map(o=>chgSimple(o,'in')).join('')}
+      ${up.map(o=>chgRow(o,'up')).join('')}${more(chg.up)}
+      ${(!chg.entrants.length&&!up.length)?'<div class="chg-empty">Ništa iznad praga.</div>':''}</div>
+    <div class="chg-col"><h4>Oslabili</h4>
+      ${chg.exits.map(o=>chgSimple(o,'out')).join('')}
+      ${down.map(o=>chgRow(o,'down')).join('')}${more(chg.down)}
+      ${(!chg.exits.length&&!down.length)?'<div class="chg-empty">Ništa iznad praga.</div>':''}</div>
+  </div>`;
+}
+
+// ============ zapis kasni / rupa u zapisu ============
+// Ovo je jedini alarm koji gleda KALENDAR, a ne sadržaj baze.
+// Cron šuti kad padne: pg_net vrati "succeeded" čim pošalje zahtjev,
+// bez obzira što funkcija odgovori. Bez ovoga rupa se vidi tek kad je
+// netko slučajno primijeti na grafu — a tada je stara tjednima.
+let fillMsg='';
+function updateStaleWarn(){
+  const w=$('staleWarn');
+  if(settings.src!=='db' || !histDB.length){ w.style.display='none'; return; }
+  const miss=missingDays();
+  if(!miss.length && !fillMsg){ w.style.display='none'; return; }
+  const exp=expectedLastDay(), last=histDB[histDB.length-1].ts;
+  const kasni=Math.round((exp-last)/DAY);
+  w.className=miss.length?'warn bad':'warn ok'; w.style.display='block';
+  w.innerHTML=(miss.length
+      ? (kasni>0
+          ? `<b>Zapis kasni ${kasni} ${kasni===1?'dan':'dana'}.</b> Zadnji upisani dan je <b>${fmtDate(last)}</b>, a trebao bi biti <b>${fmtDate(exp)}</b>. `
+          : `<b>Rupa u zapisu.</b> `)
+        + `Fali: <b>${miss.map(fmtDate).join(', ')}</b>.<br>`
+        + `<span style="opacity:.8">Za danas (${fmtDate(Date.now())}) reda nema i neće ga biti — današnja svijeća je u tijeku. `
+        + `Snapshot za ${fmtDate(exp)} cron radi u 00:10 UTC sljedećeg dana.</span>`
+      : `<b>Rupe popunjene.</b>`)
+    + (miss.length && miss.length<=14 && cfg.url && cfg.key
+        ? `<div style="margin-top:9px"><button class="primary" id="btnFill">Popuni ${miss.length} ${miss.length===1?'dan':'dana'} sada</button>`
+          + `<span style="color:var(--muted);margin-left:10px;font-size:.75rem">~1 min po danu · red dobije backfilled = true</span></div>`
+        : miss.length>14
+          ? `<div style="margin-top:8px">Rupa je duža od 14 dana — <b>ne popunjava se</b>. Popunila bi se današnjim sastavom Top 120, a to je survivorship bias, točno ono zbog čega ovaj zapis postoji. Bolje prazno nego lažno.</div>`
+          : '')
+    + (fillMsg?`<div id="fillMsg" style="margin-top:8px;font-size:.78rem">${fillMsg}</div>`:'<div id="fillMsg"></div>');
+  const b=$('btnFill'); if(b) b.onclick=()=>fillGaps(miss);
+}
+
+// Ručno popunjavanje rupe — isti poziv koji radi cron, samo s ?date=.
+// Ide serijski: dva paralelna snapshota su 480 poziva na burzu u minuti.
+async function fillGaps(days){
+  const b=$('btnFill'); if(b){ b.disabled=true; b.textContent='Punim…'; }
+  const u=cfg.url.replace(/\/+$/,''), failed=[]; let ok=0;
+  for(let i=0;i<days.length;i++){
+    const d=ymd(days[i]);
+    const el=$('fillMsg'); if(el) el.textContent=`${d} … (${i+1}/${days.length})`;
+    try{
+      const r=await fetch(`${u}/functions/v1/breadth-snapshot?write=true&date=${d}`,
+        {headers:{apikey:cfg.key, Authorization:'Bearer '+cfg.key}});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok && j.ok) ok++; else failed.push(`${d}: ${esc(j.error||('HTTP '+r.status))}`);
+    }catch(e){ failed.push(`${d}: ${esc(e.message)}`); }
+  }
+  fillMsg=`Upisano <b>${ok}/${days.length}</b>.`+(failed.length?` Nije prošlo — ${failed.join(' · ')}`:'');
+  try{ const res=await loadDBHist(); histDB=res.rows||histDB; }catch(e){}
+  render();
+}
+
+// Sučelje mora priznati kad pogled i zapis nisu ista mjera.
+// Prije je iznad dropdowna pisalo "prag zaključan" — a dropdown je radio.
+function updateMixWarn(){
+  const w=$('mixWarn');
+  const d=histDB.length?histDB[histDB.length-1]:null;
+  if(!d||d.top_n==null||(+settings.topN===d.top_n && +settings.emaLen===d.ema_len)){
+    w.style.display='none'; return;
+  }
+  w.className='warn bias'; w.style.display='block';
+  w.innerHTML=`<b>Pogled nije ono što se snima.</b> Gledaš <b>Top ${settings.topN} / EMA ${settings.emaLen}</b>, `
+    +`a zapis snima <b>Top ${d.top_n} / EMA ${d.ema_len}</b>. Gauge mjeri jedan univerzum, graf drugi — `
+    +`razlika od jučerašnjeg closea je zato <b>sakrivena</b>, jer bi govorila o dropdownu, ne o tržištu.<br>`
+    +`Zapis je netaknut: cron zove funkciju bez parametara i uvijek snima Top ${d.top_n} / EMA ${d.ema_len}, bez obzira što ovdje odabereš. `
+    +`Ovo je istraživanje — vrati na Top ${d.top_n} / EMA ${d.ema_len} za mjeru.`;
+}
+
+function updateBiasWarn(){
+  const w=$('biasWarn');
+  if(settings.src==='calc'){
+    w.className='warn bias'; w.style.display='block';
+    w.innerHTML=`<b>Ovo je skica, ne zapis.</b> Krivulja je izračunata iz <b>današnjeg</b> Top ${settings.topN} — to su preživjeli, pa je povijesni breadth <b>napuhan prema gore</b>. `+
+      `Cijene i EMA su točne; sastav univerzuma nije. Koristi za oblik i okretišta, <b>ne za razinu</b>, i <b>ne za pravila</b>. `+
+      `Iskrena povijest raste u Supabaseu — trenutno ${histDB.length} ${histDB.length===1?'dan':'dana'}.`;
+  } else {
+    const mixed = new Set(histDB.map(d=>d.top_n)).size>1 || new Set(histDB.map(d=>d.ema_len)).size>1;
+    const bf = histDB.filter(d=>d.backfilled).length;
+    if(!histDB.length){ w.className='warn bias'; w.style.display='block';
+      w.innerHTML=`<b>Iskrena povijest je prazna.</b> Ili Supabase nije konfiguriran (gumb "Supabase…"), ili cron još nije upisao nijedan dan. Do tada gledaj skicu — ali znaj da je skica.`;
+      return;
+    }
+    w.className='warn ok'; w.style.display='block';
+    w.innerHTML=`<b>Point-in-time zapis: ${histDB.length} ${histDB.length===1?'dan':'dana'}</b> od ${fmtDate(histDB[0].ts)} do ${fmtDate(histDB[histDB.length-1].ts)}. `+
+      `Svaki dan je snimljen s univerzumom koji je tog dana stvarno bio Top ${histDB[0].top_n}. Nema survivorship biasa.`+
+      (bf?` · ${bf} naknadno popunjeno (cijene točne, sastav današnji)`:'')+
+      (mixed?` · <b style="color:var(--red)">UPOZORENJE: prag ili EMA su se mijenjali kroz vrijeme — serija nije usporediva sama sa sobom.</b>`:'');
+  }
+}
+
+// ============ chart ============
+const SERIES_DEF=[
+  {key:'tier', label:'Tier score', color:'#4f8cff'},
+  {key:'p4h',  label:'% iznad 4h', color:'#22c55e'},
+  {key:'p1d',  label:'% iznad 1D', color:'#f5b942'},
+  {key:'btc',  label:'BTC cijena', color:'#8b96a8', axis:'r'},
+];
+const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
+const seriesVal=(r,k)=> k==='tier'?r.tier : k==='btc'?r.btc : r.pct[k==='p4h'?'4h':'1d'];
+const RANGES={'1m':30,'3m':90,'6m':180,'1y':365,'max':1e9};
+const curHist=()=>settings.src==='db'?histDB:histCalc;
+function visibleHist(){
+  const h=curHist(); const days=RANGES[settings.range]??180;
+  if(days>1e8) return h;
+  const cut=Date.now()-days*DAY;
+  return h.filter(x=>x.ts>=cut);
+}
+
+function buildChips(){
+  const s=$('srcGroup'); s.innerHTML='';
+  for(const [k,lbl] of [['db',`Iskrena (${histDB.length})`],['calc','Skica (pristrana)']]){
+    const el=document.createElement('div');
+    el.className='chip'+(settings.src===k?' on':'')+(k==='calc'?' bias':'');
+    el.textContent=lbl;
+    el.onclick=()=>{settings.src=k; saveSet(); updateBiasWarn(); buildChips(); drawChart();};
+    s.appendChild(el);
+  }
+  const r=$('rangeGroup'); r.innerHTML='';
+  for(const k of Object.keys(RANGES)){
+    const el=document.createElement('div');
+    el.className='chip'+(settings.range===k?' on':'');
+    el.textContent=k==='max'?'Max':k.toUpperCase();
+    el.onclick=()=>{settings.range=k; saveSet(); buildChips(); drawChart();};
+    r.appendChild(el);
+  }
+}
+function renderLegend(){
+  const l=$('legend'); l.innerHTML='';
+  for(const s of SERIES_DEF){
+    const off=settings.hidden.includes(s.key);
+    const el=document.createElement('span');
+    el.className=off?'off':'';
+    el.innerHTML=`<span class="sw" style="background:${s.color}"></span>${s.label}`;
+    el.onclick=()=>{settings.hidden=off?settings.hidden.filter(k=>k!==s.key):[...settings.hidden,s.key]; saveSet(); renderLegend(); drawChart();};
+    l.appendChild(el);
+  }
+}
+
+let chartGeom=null;
+function drawChart(){
+  const c=$('chart'), ctx=c.getContext('2d');
+  const dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight;
+  c.width=W*dpr; c.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  const data=visibleHist(), act=activeSeries();
+  if(!data.length||!act.length){
+    ctx.fillStyle='#8b96a8'; ctx.font='14px Segoe UI'; ctx.textAlign='center';
+    ctx.fillText(settings.src==='db'?'Iskrena povijest je prazna — cron još nije upisao nijedan dan.':'Nema podataka.',W/2,H/2);
+    chartGeom=null; return;
+  }
+  const P={l:42,r:58,t:12,b:26}, iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const x=i=>P.l+(data.length===1?iw/2:i/(data.length-1)*iw);
+  const yL=v=>P.t+ih-(v/100)*ih;
+  const bv=data.map(d=>d.btc).filter(v=>v!=null);
+  const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
+  const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
+
+  ctx.strokeStyle='#232c3f'; ctx.lineWidth=1; ctx.fillStyle='#8b96a8'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
+  for(let v=0;v<=100;v+=20){const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke(); ctx.fillText(v,P.l-8,y+4);}
+  ctx.strokeStyle='rgba(139,150,168,.45)'; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
+  if(act.some(s=>s.axis==='r')&&bv.length){
+    ctx.textAlign='left';
+    for(let i=0;i<=4;i++){const v=bMin-pad+i/4*((bMax+pad)-(bMin-pad)); ctx.fillText((v/1000).toFixed(0)+'k',W-P.r+8,yR(v)+4);}
+  }
+  ctx.textAlign='center';
+  // Broj oznaka mora pratiti širinu, ne biti fiksan: na telefonu se šest
+  // datuma pretvori u kašu preklopljenih znakova. Uz to kratimo format.
+  const kratko=W<520;
+  const want=Math.max(2,Math.min(6,Math.floor(W/(kratko?58:88))));
+  const step=Math.max(1,Math.ceil(data.length/want));
+  const lbl=ts=>kratko
+    ? new Date(ts).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit'})
+    : fmtDate(ts);
+  for(let i=0;i<data.length;i+=step) ctx.fillText(lbl(data[i].ts),x(i),H-8);
+
+  for(const s of act){
+    ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=s.key==='btc'?1.3:1.9;
+    if(s.key==='btc') ctx.setLineDash([5,3]);
+    let started=false;
+    for(let i=0;i<data.length;i++){
+      const v=seriesVal(data[i],s.key);
+      if(v==null){started=false;continue;}   // rupa prekida liniju — ne interpolira se
+      const px=x(i), py=s.axis==='r'?yR(v):yL(v);
+      if(!started){ctx.moveTo(px,py);started=true;} else ctx.lineTo(px,py);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    // pojedinačne točke — dok povijest ima par dana, linija se ne vidi
+    if(data.length<=45 && s.key!=='btc'){
+      ctx.fillStyle=s.color;
+      for(let i=0;i<data.length;i++){
+        const v=seriesVal(data[i],s.key); if(v==null) continue;
+        ctx.beginPath(); ctx.arc(x(i),yL(v),2.6,0,7); ctx.fill();
+      }
+    }
+  }
+  chartGeom={data,act,x,yL,yR,P,iw,W,H};
+}
+
+// Jedna funkcija za miš i za prst — na mobitelu `mousemove` ne postoji,
+// pa je graf ondje bio nijem: krivulje se vide, brojke ne.
+function showTipAt(clientX){
+  if(!chartGeom) return;
+  const {data,act,P,iw}=chartGeom;
+  const r=$('chart').getBoundingClientRect();
+  let i=Math.round((clientX-r.left-P.l)/iw*(data.length-1));
+  i=Math.max(0,Math.min(data.length-1,i));
+  const d=data[i], tip=$('tip');
+  let html=`<div class="d">${fmtDate(d.ts)}${d.backfilled?' · popunjeno':''}</div>`;
+  for(const s of act){
+    const v=seriesVal(d,s.key);
+    const t=v==null?'—':(s.key==='btc'?'$'+v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toFixed(1)+(s.key==='tier'?'':'%'));
+    html+=`<div><span class="sw" style="background:${s.color}"></span>${s.label}: <b>${t}</b></div>`;
+  }
+  html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
+  tip.innerHTML=html; tip.style.display='block';
+  tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';
+  tip.style.top='12px';
+}
+const hideTip=()=>{$('tip').style.display='none';};
+let tipTimer=null;
+$('chart').addEventListener('mousemove',e=>showTipAt(e.clientX));
+$('chart').addEventListener('mouseleave',hideTip);
+// passive: CSS `touch-action:pan-y` već odlučuje što je scroll a što prevlačenje,
+// pa nemamo što sprječavati — a passive listener ne usporava scroll stranice.
+const onTouch=e=>{ if(!e.touches[0]) return; clearTimeout(tipTimer); showTipAt(e.touches[0].clientX); };
+$('chart').addEventListener('touchstart',onTouch,{passive:true});
+$('chart').addEventListener('touchmove',onTouch,{passive:true});
+// Prst se digne i tooltip ostane još malo — inače nestane prije nego ga pročitaš.
+$('chart').addEventListener('touchend',()=>{ clearTimeout(tipTimer); tipTimer=setTimeout(hideTip,3000); },{passive:true});
+
+// ============ tablica ============
+function renderTable(){
+  // Strelica na aktivnom stupcu. Bez nje ne vidiš po čemu je sortirano
+  // ni da uopće možeš sortirati — pa "Bodovi" izgleda kao poredak, a nije.
+  const arr=k=>sortKey===k?`<span style="color:var(--accent)">${sortDir>0?' ▲':' ▼'}</span>`:'';
+  const winLbl=settings.chgWin;
+  $('thr').innerHTML=`<th class="l" data-k="rank" title="Rang po market capu">#${arr('rank')}</th>`+
+    `<th class="l c-hide-m" data-k="rankDelta" title="Promjena ranga kroz prozor panela Promjene (${winLbl}). Klikni za najveće skakače.">Δ ${winLbl}${arr('rankDelta')}</th>`+
+    `<th class="l" data-k="base">Coin${arr('base')}</th>`+
+    `<th data-k="price" title="Zadnja cijena — close 4h svijeće u tijeku, isti izvor kao Δ 4h">Cijena${arr('price')}</th>`+
+    TFS.map(tf=>`<th data-k="a_${tf}" title="Iznad ili ispod EMA200 na ${TF_LABEL[tf]}">${TF_LABEL[tf]}${arr('a_'+tf)}</th>`).join('')+
+    TFS.map(tf=>`<th class="c-hide-m" data-k="d_${tf}" title="Postotna udaljenost od EMA200 na ${TF_LABEL[tf]}">Δ ${TF_LABEL[tf]}${arr('d_'+tf)}</th>`).join('')+
+    `<th data-k="pts" title="1 bod po TF-u iznad EMA200. Klikni za sortiranje.">Bodovi${arr('pts')}</th>`;
+  [...$('thr').children].forEach(th=>{th.onclick=()=>{const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else{sortKey=k;sortDir=1;} renderTable();};});
+
+  const rows=coins.map(c=>{
+    const k=chg.byBase.get(c.base);
+    const o={...c,pts:0,full:true,pinned:pinnedSet.has(c.base),price:null,
+             novi:!!k?.novi, rankDelta:k?(k.novi?null:k.rankDelta):null};
+    for(const tf of TFS){
+      const m=live.get(c.base)?.[tf];
+      const b=m?[...m.values()].pop():null;
+      o['a_'+tf]=b?(b.above?1:0):null;
+      o['d_'+tf]=b?b.dist:null;
+      // TFS počinje s '4h', pa prvi pogodak daje najsvježiju cijenu;
+      // 1d close upada samo ako 4h serija fali.
+      if(b && o.price==null) o.price=b.close;
+      if(!b) o.full=false; else if(b.above) o.pts++;
+    }
+    return o;
+  });
+  rows.sort((a,b)=>{
+    const va=a[sortKey],vb=b[sortKey];
+    if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
+    return (typeof va==='string'?va.localeCompare(vb):va-vb)*sortDir;
+  });
+  $('tblSub').innerHTML=`— sortirano po <b>${({rank:'rangu (market cap)',base:'imenu',price:'cijeni',pts:'bodovima',rankDelta:'skoku ranga'})[sortKey]||sortKey}</b> · `
+    +`${rows.length-pinnedSet.size} u izračunu${pinnedSet.size?` + ${pinnedSet.size} prikovano`:''} · klikni stupac za drugi poredak`;
+  const link=r=>`<a class="cg" href="${esc(cgUrl(r))}" target="_blank" rel="noopener noreferrer" title="Otvori ${esc(r.base)} na CoinGecko">`;
+  const novo=r=>r.novi?` <span class="src novo" title="Ušao u Top ${settings.topN} unutar prozora ${settings.chgWin}">NOVO</span>`:'';
+  $('tb').innerHTML=rows.map(r=>r.pinned?`<tr style="opacity:.45">
+    <td class="l" style="color:var(--muted)">${r.rank??'—'}</td>
+    <td class="l c-hide-m" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
+    <td class="l">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src" style="background:var(--amber-bg);color:var(--amber)">PRIKOVAN</span><div class="coin-name">${link(r)}${esc(r.name)}</a> — ne trendira, isključen iz izračuna</div></td>
+    <td class="price">${fmtPrice(r.price)}</td>
+    ${TFS.map(()=>`<td class="cell-na">—</td>`).join('')}${TFS.map(()=>`<td class="cell-na c-hide-m">—</td>`).join('')}
+    <td class="cell-na">—</td></tr>`:`<tr>
+    <td class="l" style="color:var(--muted)">${r.rank??'—'}</td>
+    <td class="l c-hide-m" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
+    <td class="l">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src ${r.src}">${r.src==='binance'?'BIN':'BYBIT'}</span><div class="coin-name">${link(r)}${esc(r.name)}</a></div></td>
+    <td class="price">${fmtPrice(r.price)}</td>
+    ${TFS.map(tf=>{const a=r['a_'+tf]; return a==null?`<td class="cell-na">n/a</td>`:`<td class="${a?'cell-above':'cell-below'}">${a?'▲':'▼'}</td>`;}).join('')}
+    ${TFS.map(tf=>{const d=r['d_'+tf]; return d==null?`<td class="cell-na c-hide-m">—</td>`:`<td class="c-hide-m" style="color:${d>=0?'var(--green)':'var(--red)'}">${fmtPct(d,true)}</td>`;}).join('')}
+    <td><b>${r.full?r.pts+'/'+TFS.length:'—'}</b></td></tr>`).join('')
+    || `<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--muted)">Nema podataka.</td></tr>`;
+}
+
+// ============ init ============
+$('sbUrl').value=cfg.url; $('sbKey').value=cfg.key;
+$('topN').value=settings.topN; $('emaLen').value=settings.emaLen;
+$('btnCfg').onclick=()=>{const b=$('cfgBox'); b.style.display=b.style.display==='flex'?'none':'flex';};
+$('btnSaveCfg').onclick=()=>{
+  cfg={url:$('sbUrl').value.trim(), key:$('sbKey').value.trim()};
+  localStorage.setItem(LS.cfg,JSON.stringify(cfg));
+  $('cfgBox').style.display='none';
+  settings.src='db'; saveSet(); refresh();
+};
+$('autoOn').checked=!!settings.auto; $('autoMin').value=String(settings.autoMin||30);
+$('autoOn').onchange=e=>{settings.auto=e.target.checked; saveSet(); scheduleAuto();};
+$('autoMin').onchange=e=>{settings.autoMin=+e.target.value; saveSet(); scheduleAuto();};
+$('topN').onchange=e=>{settings.topN=+e.target.value; saveSet();};
+$('emaLen').onchange=e=>{settings.emaLen=+e.target.value; saveSet();};
+$('btnRefresh').onclick=refresh;
+window.addEventListener('resize',()=>drawChart());
+if(!cfg.url) $('cfgBox').style.display='flex';
+drawGauge(null); buildChips(); renderLegend(); renderChanges(); refresh();
+</script>
+</body>
+</html>

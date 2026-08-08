@@ -1,0 +1,367 @@
+<title>EMA Breadth — tjedna provjera</title>
+<style>
+  :root{
+    --ground:#FBFCFD; --surface:#FFFFFF; --surface-2:#F1F4F8; --surface-3:#E8EDF4;
+    --line:#DCE3EC; --line-strong:#C3CDDB;
+    --text:#131A24; --text-dim:#5B6678; --text-faint:#8A94A6;
+    --accent:#2E5FBF;
+    --crit:#C92A2F; --crit-bg:#FDECEC;
+    --warn:#B87610; --warn-bg:#FDF4E3;
+    --good:#1B7A4B; --good-bg:#E8F6EE;
+    --code-bg:#F4F7FB;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0A0D13; --surface:#141A24; --surface-2:#1C2432; --surface-3:#242E3E;
+      --line:#263041; --line-strong:#36435A;
+      --text:#E6EAF2; --text-dim:#8892A6; --text-faint:#69738A;
+      --accent:#5B8DEF;
+      --crit:#F0575C; --crit-bg:rgba(229,72,77,.11);
+      --warn:#F0A32E; --warn-bg:rgba(240,163,46,.11);
+      --good:#3DCB86; --good-bg:rgba(48,163,108,.13);
+      --code-bg:#0D1219;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#FBFCFD; --surface:#FFFFFF; --surface-2:#F1F4F8; --surface-3:#E8EDF4;
+    --line:#DCE3EC; --line-strong:#C3CDDB;
+    --text:#131A24; --text-dim:#5B6678; --text-faint:#8A94A6;
+    --accent:#2E5FBF;
+    --crit:#C92A2F; --crit-bg:#FDECEC;
+    --warn:#B87610; --warn-bg:#FDF4E3;
+    --good:#1B7A4B; --good-bg:#E8F6EE;
+    --code-bg:#F4F7FB;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.05);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0A0D13; --surface:#141A24; --surface-2:#1C2432; --surface-3:#242E3E;
+    --line:#263041; --line-strong:#36435A;
+    --text:#E6EAF2; --text-dim:#8892A6; --text-faint:#69738A;
+    --accent:#5B8DEF;
+    --crit:#F0575C; --crit-bg:rgba(229,72,77,.11);
+    --warn:#F0A32E; --warn-bg:rgba(240,163,46,.11);
+    --good:#3DCB86; --good-bg:rgba(48,163,108,.13);
+    --code-bg:#0D1219;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.3);
+  }
+  :root{
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--ground); color:var(--text);
+    font-family:var(--sans); font-size:16.5px; line-height:1.62;
+    margin:0; padding:0 20px 96px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:780px; margin:0 auto;}
+  p{margin:0 0 1.05em; max-width:66ch;}
+
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; font-weight:600;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--text-faint); margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--mono); font-weight:600; font-size:clamp(28px,5vw,40px);
+    letter-spacing:-.025em; line-height:1.12; text-wrap:balance; margin:0 0 16px;
+  }
+  h2{
+    font-family:var(--mono); font-weight:600; font-size:18px; letter-spacing:-.01em;
+    text-wrap:balance; margin:0 0 20px; padding-bottom:12px; border-bottom:1px solid var(--line);
+  }
+  .lede{font-size:19px; line-height:1.55; color:var(--text-dim); max-width:60ch; margin:0 0 0;}
+  header{padding:72px 0 40px;}
+  section{padding:46px 0 0;}
+
+  code{
+    font-family:var(--mono); font-size:.87em; background:var(--surface-2);
+    border:1px solid var(--line); border-radius:4px; padding:1px 5px;
+  }
+  pre{
+    font-family:var(--mono); font-size:13px; line-height:1.6;
+    background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; margin:0; overflow-x:auto; color:var(--text);
+  }
+  pre .kw{color:var(--accent);}
+  pre .cm{color:var(--text-faint);}
+
+  /* ---- ritual banner ---- */
+  .ritual{
+    background:var(--surface); border:1px solid var(--line); border-radius:13px;
+    padding:24px 26px; box-shadow:var(--shadow); margin-top:34px;
+    display:flex; gap:22px; align-items:center; flex-wrap:wrap;
+  }
+  .ritual-when{
+    font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--accent);
+    border:1px solid currentColor; border-radius:999px; padding:6px 13px; white-space:nowrap;
+  }
+  .ritual p{margin:0; font-size:15.5px; color:var(--text-dim); flex:1; min-width:240px;}
+  .ritual strong{color:var(--text);}
+
+  /* ---- checks ---- */
+  .checks{display:flex; flex-direction:column; gap:18px;}
+  .check{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; overflow:hidden;
+  }
+  .check-head{
+    display:flex; align-items:baseline; gap:13px; padding:17px 22px 15px;
+    border-bottom:1px solid var(--line); background:var(--surface-2); flex-wrap:wrap;
+  }
+  .check-n{
+    font-family:var(--mono); font-size:12px; font-weight:600; color:var(--text-faint);
+    letter-spacing:.06em; white-space:nowrap;
+  }
+  .check-t{font-family:var(--mono); font-size:15px; font-weight:600; letter-spacing:-.01em;}
+  .check-catch{
+    font-size:13px; color:var(--text-faint); margin-left:auto;
+    font-family:var(--mono); letter-spacing:.02em;
+  }
+  .check-body{padding:20px 22px 22px; display:flex; flex-direction:column; gap:15px;}
+  .row{display:grid; grid-template-columns:78px 1fr; gap:16px; align-items:start;}
+  @media(max-width:600px){ .row{grid-template-columns:1fr; gap:6px;} .check-catch{margin-left:0; width:100%;} }
+  .row-k{
+    font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-faint); padding-top:3px;
+  }
+  .row-v{font-size:15px;}
+  .row-v p{margin:0 0 .5em;} .row-v p:last-child{margin-bottom:0;}
+  .ok-pill, .bad-pill{
+    display:inline-block; font-family:var(--mono); font-size:12px; font-weight:600;
+    border-radius:5px; padding:3px 9px; letter-spacing:.02em;
+  }
+  .ok-pill{background:var(--good-bg); color:var(--good);}
+  .bad-pill{background:var(--crit-bg); color:var(--crit);}
+
+  /* ---- repair ---- */
+  .steps{list-style:none; margin:0; padding:0; counter-reset:s; display:flex; flex-direction:column; gap:0;}
+  .steps li{
+    counter-increment:s; display:grid; grid-template-columns:auto 1fr; gap:15px;
+    padding:15px 0; border-bottom:1px solid var(--line); align-items:start;
+  }
+  .steps li:last-child{border-bottom:0;}
+  .steps li::before{
+    content:counter(s); font-family:var(--mono); font-size:11px; font-weight:600;
+    color:var(--accent); background:var(--surface-2); border:1px solid var(--line);
+    border-radius:5px; width:24px; height:24px; display:grid; place-items:center; margin-top:1px;
+  }
+  .steps strong{font-weight:600;}
+  .steps p{margin:4px 0 0; font-size:14.5px; color:var(--text-dim);}
+
+  .kv{
+    font-family:var(--mono); font-size:13px; background:var(--code-bg);
+    border:1px solid var(--line); border-radius:7px; padding:11px 14px;
+    margin-top:9px; display:inline-block;
+  }
+  .kv b{color:var(--accent); font-weight:600;}
+
+  .callout{
+    background:var(--surface-2); border:1px solid var(--line);
+    border-radius:11px; padding:20px 22px; margin:20px 0 0;
+  }
+  .callout h3{font-family:var(--mono); font-size:14px; font-weight:600; margin:0 0 7px;}
+  .callout p:last-child{margin-bottom:0;}
+  .callout.stop{background:var(--crit-bg); border-color:color-mix(in srgb, var(--crit) 34%, transparent);}
+  .callout.stop h3{color:var(--crit);}
+  .callout.warn{background:var(--warn-bg); border-color:color-mix(in srgb, var(--warn) 34%, transparent);}
+  .callout.warn h3{color:var(--warn);}
+
+  .blind{list-style:none; margin:0; padding:0;}
+  .blind li{
+    padding:14px 0; border-bottom:1px solid var(--line);
+    display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start;
+  }
+  .blind li:last-child{border-bottom:0;}
+  .blind .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--crit);
+    margin-top:9px; flex-shrink:0;
+  }
+  .blind strong{font-weight:600;}
+  .blind p{margin:3px 0 0; font-size:14.5px; color:var(--text-dim);}
+
+  footer{
+    margin-top:64px; padding-top:26px; border-top:1px solid var(--line);
+    font-family:var(--mono); font-size:11.5px; color:var(--text-faint); letter-spacing:.02em;
+  }
+  footer p{margin:0 0 5px; max-width:none;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px;}
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">EMA Breadth · održavanje</p>
+  <h1>Tjedna provjera</h1>
+  <p class="lede">Sustav ti od sad svaki dan javlja „ok”. Javljat će „ok” i onog jutra kad se nešto slomi — jer greška koja se sama prijavi nije ona koja te košta. Ovo su četiri upita koji hvataju ostale.</p>
+
+  <div class="ritual">
+    <span class="ritual-when">Ponedjeljkom · 30 sekundi</span>
+    <p>Otvori <strong>Supabase → SQL Editor</strong> i pokreni sva četiri. Ako sva četiri prođu, ne diraš ništa cijeli tjedan.</p>
+  </div>
+</header>
+
+<section>
+  <h2>Četiri upita</h2>
+  <div class="checks">
+
+    <div class="check">
+      <div class="check-head">
+        <span class="check-n">01</span>
+        <span class="check-t">Fali li koji dan</span>
+        <span class="check-catch">hvata: cron je stao</span>
+      </div>
+      <div class="check-body">
+        <pre><span class="kw">select</span> * <span class="kw">from</span> market_breadth_gaps;</pre>
+        <div class="row">
+          <div class="row-k">Dobro</div>
+          <div class="row-v"><span class="ok-pill">0 redova</span></div>
+        </div>
+        <div class="row">
+          <div class="row-k">Loše</div>
+          <div class="row-v">
+            <span class="bad-pill">bilo koji datum</span>
+            <p style="margin-top:7px;">Popravi ga — postupak je niže. Rupa se ne popravlja sama i ne nestaje s vremenom.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="check-head">
+        <span class="check-n">02</span>
+        <span class="check-t">Je li mjera ostala ista</span>
+        <span class="check-catch">hvata: povijest više nije usporediva</span>
+      </div>
+      <div class="check-body">
+        <pre><span class="kw">select</span> * <span class="kw">from</span> market_breadth_health;</pre>
+        <div class="row">
+          <div class="row-k">Dobro</div>
+          <div class="row-v">
+            <span class="ok-pill">razlicitih_pragova = 1</span>
+            &nbsp;<span class="ok-pill">razlicitih_ema = 1</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-k">Loše</div>
+          <div class="row-v">
+            <span class="bad-pill">bilo koji od njih = 2</span>
+            <p style="margin-top:7px;">Netko je promijenio Top&nbsp;120 ili EMA&nbsp;200. Znači da stari i novi redovi mjere <em>različite stvari</em>, a graf ih crta kao istu liniju. Ovo je najskuplji mogući kvar i jedini je znak ova brojka.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="check-head">
+        <span class="check-n">03</span>
+        <span class="check-t">Je li zapis svjež</span>
+        <span class="check-catch">hvata: cron koji je stao, a javlja da radi</span>
+      </div>
+      <div class="check-body">
+        <pre><span class="kw">select max</span>(date) <span class="kw">as</span> zadnji, current_date - 1 <span class="kw">as</span> trebao_bi_biti
+<span class="kw">from</span> market_breadth;</pre>
+        <div class="row">
+          <div class="row-k">Dobro</div>
+          <div class="row-v"><span class="ok-pill">zadnji = trebao_bi_biti</span><p style="margin-top:7px;">Zadnji upisani dan je <em>jučer</em>. Za <em>danas</em> reda nema i neće ga biti — današnja svijeća je u tijeku, snapshot za danas ide sutra u 00:10 UTC. To nije kvar.</p></div>
+        </div>
+        <div class="row">
+          <div class="row-k">Loše</div>
+          <div class="row-v">
+            <span class="bad-pill">zadnji je stariji</span>
+            <p style="margin-top:7px;">Cron je stao. Popuni rupu (dolje) ili pusti <code>breadth-gap-heal</code> da to napravi sam u 03:10 UTC. Aplikacija ovo sama viče crvenom trakom na vrhu — ovaj upit je samo potvrda.</p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-k">Ne gledaj</div>
+          <div class="row-v">
+            <span class="bad-pill">cron.job_run_details</span>
+            <p style="margin-top:7px;"><code>net.http_get</code> samo <em>stavi</em> zahtjev u red i odmah se vrati, pa cron upiše <code>succeeded</code> i kad je funkcija odgovorila 500 ili nije odgovorila uopće. Taj stupac ne dokazuje ništa. Jedini pošten dokaz je datum u tablici.</p>
+            <p style="margin-top:7px;">Pravi HTTP odgovor stoji u <code>net._http_response</code>, ali samo ~6 sati — koristan je isti dan kad je nešto palo, ne tjedan kasnije.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="check-head">
+        <span class="check-n">04</span>
+        <span class="check-t">Tko je novi u univerzumu</span>
+        <span class="check-catch">hvata: zlato, dionice, ono što filtri ne mogu</span>
+      </div>
+      <div class="check-body">
+        <pre><span class="kw">select</span> * <span class="kw">from</span> market_breadth_entrants;</pre>
+        <div class="row">
+          <div class="row-k">Dobro</div>
+          <div class="row-v"><span class="ok-pill">0–3 coina, svi kripto</span><p style="margin-top:7px;">Kretanje sastava je normalno i poželjno — tako i treba izgledati point-in-time zapis.</p></div>
+        </div>
+        <div class="row">
+          <div class="row-k">Loše</div>
+          <div class="row-v">
+            <span class="bad-pill">bilo što što nije kripto</span>
+            <p style="margin-top:7px;">Tokenizirano zlato, srebro, nafta, dionica, ETF. <strong>Ovaj upit je jedina obrana od njih</strong> — vidi zadnju sekciju. Ako vidiš takvo što, ide na listu isključenih.</p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-k">Prazno</div>
+          <div class="row-v"><p>Prvih 8 dana ne vraća ništa — nema se s čim usporediti.</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Ako fali dan</h2>
+  <p>Rupa je popravljiva. Binance drži punu povijest svijeća, pa se izgubljeni dan preračuna s <em>istim</em> cijenama koje bi funkcija tada vidjela. Jedino što ne znaš je koji je Top&nbsp;120 bio tog dana — a to je nebitno za par dana i pogubno za par mjeseci.</p>
+  <ol class="steps">
+    <li><div><strong>Uzmi datum</strong> iz <code>market_breadth_gaps</code>.</div></li>
+    <li><div><strong>Supabase → Edge Functions → breadth-snapshot → Test</strong> (gore desno).</div></li>
+    <li>
+      <div><strong>Query Parameters</strong> — dva reda:
+        <div class="kv"><b>write</b> = true &nbsp;·&nbsp; <b>date</b> = 2026-07-20</div>
+      </div>
+    </li>
+    <li><div><strong>Send Request.</strong><p>Očekuj <code>"ok": true</code> i <code>"backfilled": true</code>. Taj flag ostaje u bazi zauvijek — tako uvijek znaš koji su redovi zakrpa.</p></div></li>
+    <li><div><strong>Jedan datum po pozivu.</strong><p>Za tri rupe — tri poziva. Onda ponovi upit 01: mora vratiti 0 redova.</p></div></li>
+  </ol>
+
+  <div class="callout stop">
+    <h3>Rupa duža od ~2 tjedna — nemoj</h3>
+    <p>Popunio bi je <em>današnjim</em> sastavom Top 120. To su preživjeli, pa bi ti prošlost ispala lažno bikovska — točno survivorship bias zbog kojeg ovaj zapis uopće postoji. Prazno mjesto je pošteno; zakrpa nije. Ostavi rupu i idi dalje.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Što ni ova provjera ne hvata</h2>
+  <p>Da ne bude iluzije da je pokriveno sve. Ovo su rupe koje ostaju otvorene i kod kojih si ti jedini senzor:</p>
+  <ul class="blind">
+    <li><span class="dot"></span><div>
+      <strong>Brojku koja je tu, uredna, i kriva.</strong>
+      <p>Ako CoinGecko promijeni format ili Binance počne vraćati čudne svijeće, sve četiri provjere prolaze zeleno. Rupe nema, prag je isti, zadnji dan je jučerašnji — a broj je smeće. Jedina obrana: povremeno pogledaj gauge i pitaj se odgovara li onome što vidiš na grafovima.</p>
+    </div></li>
+    <li><span class="dot"></span><div>
+      <strong>Zlato i dionice koje tek dođu.</strong>
+      <p>Stableovi se hvataju sami — po tome što se ne miču. Zlato se <em>miče</em>, pa ga taj filter ne vidi; jedina obrana mu je popis imena, a popis ne zna za ono što još ne postoji. Isto vrijedi za tokeniziranu dionicu. <strong>Upit 04 je jedina stvar koja ih hvata</strong>, i radi samo ako ga pokreneš.</p>
+    </div></li>
+    <li><span class="dot"></span><div>
+      <strong>Da je prag 0.5% krivo postavljen.</strong>
+      <p>Danas je razmak između prikovanih (max 0.044%) i pravih coina (min 1.29%) golem — 29×. Ako se tržište promijeni tako da se taj razmak zatvori, ništa neće javiti. Zato svaki coin ostaje u <code>raw</code> sa svojom volatilnošću: prag se uvijek može preračunati unatrag, bez gubitka povijesti.</p>
+    </div></li>
+  </ul>
+  <div class="callout warn">
+    <h3>Jedno pravilo koje vrijedi više od sva četiri upita</h3>
+    <p>Prije nego pritisneš <strong>Run</strong> na bilo kojem SQL-u — znaj koja od tih linija mijenja podatke. Kod ovog zapisa backup ne postoji u smislu u kojem misliš: izgubljen dan se ne može ponovno snimiti, jer sutra ta svijeća više nije jučerašnja.</p>
+  </div>
+</section>
+
+<footer>
+  <p>EMA Breadth · runbook · projekt ema-breadth</p>
+  <p>Cron: 00:10 UTC (02:10 po našem) + rezerva 01:10 UTC · pogledi iz sql/03-nadzor.sql</p>
+</footer>
+
+</div>
