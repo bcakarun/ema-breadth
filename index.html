@@ -18,7 +18,32 @@
   h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--green); box-shadow:0 0 8px var(--green);}
   .sub{color:var(--muted); font-size:.85rem; margin-bottom:14px;}
 
-  .controls{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; margin-bottom:12px;}
+  /* ===== zaglavlje: naslov lijevo, ikone desno =====
+     Postavke i objašnjenja su rijetke radnje — na ekranu drže ikonu, ne redak. */
+  .head{display:flex; align-items:flex-start; gap:12px; margin-bottom:12px;}
+  .head-t{flex:1; min-width:0;}
+  .head-t .sub{margin-bottom:0;}
+  .head-actions{display:flex; gap:8px; flex-shrink:0;}
+  button.icon{
+    width:38px; height:38px; flex-shrink:0; position:relative; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel); border:1px solid var(--border); color:var(--muted);
+    border-radius:10px; cursor:pointer;
+  }
+  button.icon svg{width:19px; height:19px;}
+  button.icon:hover{color:var(--text); border-color:var(--accent);}
+  button.icon.on{background:rgba(79,140,255,.15); border-color:var(--accent); color:var(--text);}
+  button.icon.go{background:var(--accent); border-color:var(--accent); color:#fff;}
+  button.icon.go:hover{filter:brightness(1.1);}
+  button.icon:disabled{opacity:.55; cursor:default;}
+  /* Točkica na "i" nosi stanje povijesti — da se ladica ne mora otvarati
+     samo da bi se vidjelo gleda li se zapis ili skica. */
+  button.icon .st{position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%; border:2px solid var(--bg); display:none;}
+  button.icon.st-warn .st{display:block; background:var(--amber);}
+  button.icon.st-ok .st{display:block; background:var(--green);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  button.icon.busy svg{animation:spin 1s linear infinite;}
+
   .ctrl{display:flex; flex-direction:column; gap:5px;}
   .ctrl label{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
   input[type=number], input[type=text], select{
@@ -49,9 +74,17 @@
   .warn.bad{background:var(--red-bg); border:1px solid var(--red); color:#ffb4b4;}
   .warn b{color:inherit; font-weight:700;}
 
-  .cfg{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px; display:none; gap:12px; flex-wrap:wrap; align-items:flex-end;}
-  .cfg input[type=text]{width:280px; font-family:ui-monospace,monospace; font-size:.78rem;}
-  .cfg .hint{font-size:.75rem; color:var(--muted); flex-basis:100%;}
+  /* ===== ladica: postavke i objašnjenje =====
+     Otvorena je uvijek najviše jedna — dvije bi brojke odgurale ispod ruba ekrana. */
+  .sheet{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; display:none;}
+  .sheet.open{display:block;}
+  .sheet-sec + .sheet-sec{margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
+  .sheet-h{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:9px;}
+  .sheet-row{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;}
+  .sheet .hint{font-size:.75rem; color:var(--muted); margin-top:9px; line-height:1.55;}
+  .sheet input[type=text]{width:280px; font-family:ui-monospace,monospace; font-size:.78rem;}
+  .sheet a{color:var(--accent);}
+  #emaLen{width:84px;}
 
   .top{display:grid; grid-template-columns:260px 1fr; gap:12px; margin-bottom:12px;}
   @media(max-width:860px){ .top{grid-template-columns:1fr;} }
@@ -62,8 +95,9 @@
   .gauge .sub2{font-size:.75rem; color:var(--muted); margin-top:8px; text-align:center; line-height:1.5;}
 
   /* Dva stupca: 1D lijevo, 4h desno. Par se čita vodoravno, sloj okomito. */
+  /* Dva stupca ostaju i na telefonu: jedan stupac je značio pola praznog
+     ekrana i šest redaka skrolanja za šest brojki. */
   .metrics{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start;}
-  @media(max-width:560px){ .metrics{grid-template-columns:1fr;} }
   .metric{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
   .metric .k{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
   .metric .v{font-size:1.3rem; font-weight:700;}
@@ -147,7 +181,22 @@
     body{padding:10px;}
     h1{font-size:1.15rem;}
     .sub{font-size:.76rem; margin-bottom:10px;}
-    .controls{padding:10px 11px; gap:10px;}
+    .head{gap:8px; margin-bottom:10px;}
+    .head-actions{gap:6px;}
+    button.icon{width:36px; height:36px;}
+    .sheet{padding:12px;}
+    /* Polja se šire preko cijele širine; Univerzum i EMA dijele redak. */
+    .sheet-row{gap:10px;}
+    .sheet-row .ctrl{flex:1 1 46%;}
+    .sheet-row .ctrl.wide{flex-basis:100%;}
+    .sheet-row select, .sheet-row #emaLen, .sheet-row .wide input[type=text], .sheet-row button.primary{width:100%;}
+    /* Šest pločica u tri reda umjesto šest — brojke stanu na jedan ekran. */
+    .top{gap:9px;}
+    .metrics{padding:10px; gap:9px;}
+    .metric{padding:9px;}
+    .metric .k{font-size:.6rem; letter-spacing:.03em; margin-bottom:4px;}
+    .metric .v{font-size:1.15rem;}
+    .metric .n{font-size:.66rem; line-height:1.4;}
     /* iOS zumira stranicu čim fokusiraš polje manje od 16px. */
     input[type=number], input[type=text], select{font-size:16px; padding:8px 10px;}
     .chip{padding:7px 12px;}          /* prst nije mišji kursor */
@@ -177,64 +226,92 @@
 </head>
 <body>
 
-<h1><span class="dot"></span>EMA Breadth</h1>
-<div class="sub">Koliko je coina iz Top 120 iznad EMA200 na 4h i 1D — zdravlje tržišta kao cjeline · spot: Binance · Bybit · univerzum: CoinGecko</div>
-
-<div class="err" id="errBox"></div>
-<div class="warn" id="staleWarn"></div>
-<div class="warn" id="mixWarn"></div>
-<div class="warn" id="biasWarn"></div>
-
-<div class="cfg" id="cfgBox">
-  <div class="ctrl">
-    <label>Supabase URL</label>
-    <input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co">
+<div class="head">
+  <div class="head-t">
+    <h1><span class="dot"></span>EMA Breadth</h1>
+    <div class="sub">Koliko je coina iz Top 120 iznad EMA200 na 4h i 1D — zdravlje tržišta kao cjeline · spot: Binance · Bybit · univerzum: CoinGecko</div>
   </div>
-  <div class="ctrl">
-    <label>Anon key</label>
-    <input type="text" id="sbKey" placeholder="eyJhbGciOi...">
-  </div>
-  <div class="ctrl">
-    <label>&nbsp;</label>
-    <button class="primary" id="btnSaveCfg">Spremi</button>
-  </div>
-  <div class="hint">
-    Settings → API u projektu <b>ema-breadth</b>. Anon ključ smije samo čitati (RLS), pa je bezopasan u ovom fileu.
-    Sprema se u localStorage ovog preglednika.
+  <div class="head-actions">
+    <button class="icon" id="btnInfo" title="Što ovo jest, a što nije" aria-label="Objašnjenje">
+      <span class="st"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    </button>
+    <button class="icon" id="btnCfg" title="Postavke" aria-label="Postavke">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="icon go" id="btnRefresh" title="Osvježi" aria-label="Osvježi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    </button>
   </div>
 </div>
 
-<div class="controls">
-  <div class="ctrl">
-    <label title="Mijenja samo ovaj pogled. Zapis uvijek snima Top 120 / EMA 200.">Univerzum (samo pogled)</label>
-    <select id="topN">
-      <option value="50">Top 50</option>
-      <option value="100">Top 100</option>
-      <option value="120" selected>Top 120</option>
-    </select>
+<div class="err" id="errBox"></div>
+<!-- Alarmi ostaju vani: sami se skrivaju kad je sve u redu, pa ne smetaju
+     svaki dan, ali kad se jave moraju se vidjeti bez klika. -->
+<div class="warn" id="staleWarn"></div>
+<div class="warn" id="mixWarn"></div>
+
+<div class="sheet" id="infoBox">
+  <div class="warn" id="biasWarn"></div>
+  <div class="sheet-h">Kako se ovo čita</div>
+  <div class="hint" style="margin-top:0">
+    <b>Tier score</b> je postotak osvojenih bodova: svaki coin daje 1 bod za svaki timeframe u kojem je iznad EMA200.
+    Visok skor znači da tržište kao cjelina trguje iznad svoje dugoročne linije, nizak da je većina ispod nje.
+    <b>Jačina</b> je prosječna udaljenost od EMA200 — govori koliko je taj položaj uvjerljiv, ne samo je li iznad ili ispod.
+    <br><a href="docs/vodic-kako-se-cita.html" target="_blank" rel="noopener">Cijeli vodič — kako se pokazatelj čita ↗</a>
   </div>
-  <div class="ctrl">
-    <label>EMA</label>
-    <input type="number" id="emaLen" min="20" max="400" step="1" value="200" style="width:80px">
-  </div>
-  <div class="ctrl">
-    <label title="Ponavlja isti dohvat kao gumb Osvježi. U pozadinskom tabu čeka da se vratiš.">Auto-osvježavanje</label>
-    <div class="autorow">
-      <label class="chk"><input type="checkbox" id="autoOn"> uklj.</label>
-      <select id="autoMin">
-        <option value="15">15 min</option>
-        <option value="30">30 min</option>
-        <option value="60">60 min</option>
-      </select>
+</div>
+
+<div class="sheet" id="cfgBox">
+  <div class="sheet-sec">
+    <div class="sheet-h">Pogled</div>
+    <div class="sheet-row">
+      <div class="ctrl">
+        <label>Univerzum</label>
+        <select id="topN">
+          <option value="50">Top 50</option>
+          <option value="100">Top 100</option>
+          <option value="120" selected>Top 120</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>EMA</label>
+        <input type="number" id="emaLen" min="20" max="400" step="1" value="200">
+      </div>
+      <div class="ctrl wide">
+        <label title="Ponavlja isti dohvat kao gumb Osvježi. U pozadinskom tabu čeka da se vratiš.">Auto-osvježavanje</label>
+        <div class="autorow">
+          <label class="chk"><input type="checkbox" id="autoOn"> uklj.</label>
+          <select id="autoMin">
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+      </div>
     </div>
+    <div class="hint">Mijenja <b>samo ovaj pogled</b>. Zapis u bazi uvijek snima Top 120 / EMA 200, bez obzira što ovdje odabereš.</div>
   </div>
-  <div class="ctrl">
-    <label>&nbsp;</label>
-    <button class="primary" id="btnRefresh">Osvježi</button>
-  </div>
-  <div class="ctrl">
-    <label>&nbsp;</label>
-    <button class="ghost" id="btnCfg">Supabase…</button>
+  <div class="sheet-sec">
+    <div class="sheet-h">Supabase — iskrena povijest</div>
+    <div class="sheet-row">
+      <div class="ctrl wide">
+        <label>Project URL</label>
+        <input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="ctrl wide">
+        <label>Anon key</label>
+        <input type="text" id="sbKey" placeholder="eyJhbGciOi...">
+      </div>
+      <div class="ctrl">
+        <label>&nbsp;</label>
+        <button class="primary" id="btnSaveCfg">Spremi</button>
+      </div>
+    </div>
+    <div class="hint">
+      Settings → API u Supabase projektu <b>ema-breadth</b>. Anon ključ smije samo čitati (RLS), pa je bezopasan u pregledniku.
+      Sprema se u localStorage — vezan je uz adresu stranice, pa ga na svakom uređaju upisuješ jednom.
+    </div>
   </div>
 </div>
 
@@ -650,7 +727,7 @@ async function loadChanges(){
 // ============ glavni refresh ============
 async function refresh(){
   if(loading) return;
-  loading=true; hideErr(); $('btnRefresh').disabled=true;
+  loading=true; hideErr(); $('btnRefresh').disabled=true; $('btnRefresh').classList.add('busy');
   const emaLen=+settings.emaLen, topN=+settings.topN;
   const t0=performance.now();
   try{
@@ -709,7 +786,7 @@ async function refresh(){
     loadChanges();   // ide sam za sobom — ne blokira prikaz gaugea i tablice
   }catch(e){
     showErr(e.message); $('status').textContent='Greška.'; $('progWrap').style.display='none';
-  }finally{ loading=false; $('btnRefresh').disabled=false; scheduleAuto(); }
+  }finally{ loading=false; $('btnRefresh').disabled=false; $('btnRefresh').classList.remove('busy'); scheduleAuto(); }
 }
 
 // ============ automatsko osvježavanje ============
@@ -881,7 +958,7 @@ function renderChanges(){
 
   const msg=t=>{ sub.textContent=''; body.innerHTML=`<div class="chg-empty">${t}</div>`; };
   if(chg.state==='load')  return msg('Učitavam sastav…');
-  if(chg.state==='nocfg') return msg('Traži Supabase — promjene se čitaju iz snimljenog zapisa, ne iz skice. Postavi URL i ključ gumbom "Supabase…".');
+  if(chg.state==='nocfg') return msg('Traži Supabase — promjene se čitaju iz snimljenog zapisa, ne iz skice. Postavi URL i ključ pod ikonom ⚙ gore desno.');
   if(chg.state==='short') return msg('Treba bar dva nebackfillana dana u zapisu. Panel se pali sam čim ih bude.');
   if(chg.state==='err')   return msg('Greška: '+chg.err);
   if(chg.state!=='ok')    return msg('—');
@@ -979,6 +1056,17 @@ function updateMixWarn(){
     +`Ovo je istraživanje — vrati na Top ${d.top_n} / EMA ${d.ema_len} za mjeru.`;
 }
 
+// Tekst objašnjenja živi u ladici pod ikonom "i" — ne treba ga čitati svaki dan.
+// Ali stanje mora ostati vidljivo bez klika, pa ga nosi točkica na samoj ikoni:
+// zelena = point-in-time zapis, jantarna = skica ili prazna povijest.
+function setInfoDot(ok){
+  const b=$('btnInfo');
+  b.classList.toggle('st-ok',ok);
+  b.classList.toggle('st-warn',!ok);
+  b.title = ok ? 'Iskrena povijest — što ovo jest, a što nije'
+               : 'Pozor: gledaš skicu, ne zapis — klikni za objašnjenje';
+}
+
 function updateBiasWarn(){
   const w=$('biasWarn');
   if(settings.src==='calc'){
@@ -986,13 +1074,15 @@ function updateBiasWarn(){
     w.innerHTML=`<b>Ovo je skica, ne zapis.</b> Krivulja je izračunata iz <b>današnjeg</b> Top ${settings.topN} — to su preživjeli, pa je povijesni breadth <b>napuhan prema gore</b>. `+
       `Cijene i EMA su točne; sastav univerzuma nije. Koristi za oblik i okretišta, <b>ne za razinu</b>, i <b>ne za pravila</b>. `+
       `Iskrena povijest raste u Supabaseu — trenutno ${histDB.length} ${histDB.length===1?'dan':'dana'}.`;
+    setInfoDot(false);
   } else {
     const mixed = new Set(histDB.map(d=>d.top_n)).size>1 || new Set(histDB.map(d=>d.ema_len)).size>1;
     const bf = histDB.filter(d=>d.backfilled).length;
     if(!histDB.length){ w.className='warn bias'; w.style.display='block';
-      w.innerHTML=`<b>Iskrena povijest je prazna.</b> Ili Supabase nije konfiguriran (gumb "Supabase…"), ili cron još nije upisao nijedan dan. Do tada gledaj skicu — ali znaj da je skica.`;
-      return;
+      w.innerHTML=`<b>Iskrena povijest je prazna.</b> Ili Supabase nije konfiguriran (ikona ⚙ gore desno), ili cron još nije upisao nijedan dan. Do tada gledaj skicu — ali znaj da je skica.`;
+      setInfoDot(false); return;
     }
+    setInfoDot(true);
     w.className='warn ok'; w.style.display='block';
     w.innerHTML=`<b>Point-in-time zapis: ${histDB.length} ${histDB.length===1?'dan':'dana'}</b> od ${fmtDate(histDB[0].ts)} do ${fmtDate(histDB[histDB.length-1].ts)}. `+
       `Svaki dan je snimljen s univerzumom koji je tog dana stvarno bio Top ${histDB[0].top_n}. Nema survivorship biasa.`+
@@ -1201,11 +1291,22 @@ function renderTable(){
 // ============ init ============
 $('sbUrl').value=cfg.url; $('sbKey').value=cfg.key;
 $('topN').value=settings.topN; $('emaLen').value=settings.emaLen;
-$('btnCfg').onclick=()=>{const b=$('cfgBox'); b.style.display=b.style.display==='flex'?'none':'flex';};
+
+// Ladice: otvorena je najviše jedna. Predaj null da se zatvore obje.
+const SHEETS=[['btnInfo','infoBox'],['btnCfg','cfgBox']];
+function toggleSheet(which){
+  for(const [btn,box] of SHEETS){
+    const open = box===which && !$(box).classList.contains('open');
+    $(box).classList.toggle('open',open);
+    $(btn).classList.toggle('on',open);
+  }
+}
+$('btnInfo').onclick=()=>toggleSheet('infoBox');
+$('btnCfg').onclick=()=>toggleSheet('cfgBox');
 $('btnSaveCfg').onclick=()=>{
   cfg={url:$('sbUrl').value.trim(), key:$('sbKey').value.trim()};
   localStorage.setItem(LS.cfg,JSON.stringify(cfg));
-  $('cfgBox').style.display='none';
+  toggleSheet(null);
   settings.src='db'; saveSet(); refresh();
 };
 $('autoOn').checked=!!settings.auto; $('autoMin').value=String(settings.autoMin||30);
@@ -1215,7 +1316,7 @@ $('topN').onchange=e=>{settings.topN=+e.target.value; saveSet();};
 $('emaLen').onchange=e=>{settings.emaLen=+e.target.value; saveSet();};
 $('btnRefresh').onclick=refresh;
 window.addEventListener('resize',()=>drawChart());
-if(!cfg.url) $('cfgBox').style.display='flex';
+if(!cfg.url) toggleSheet('cfgBox');
 drawGauge(null); buildChips(); renderLegend(); renderChanges(); refresh();
 </script>
 </body>
