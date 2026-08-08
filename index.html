@@ -212,15 +212,24 @@
     /* Tablica se stišće umjesto da tjera vodoravni scroll; ako i dalje ne
        stane, .table-wrap ima overflow-x pa ništa nije izgubljeno. */
     table{min-width:0; font-size:.8rem;}
-    th{padding:8px 5px; font-size:.6rem;}
-    td{padding:8px 5px;}
-    /* Ćelije nasljeđuju nowrap, pa je puni naziv ("United Stables — ne trendira,
-       isključen iz izračuna") razvlačio stupac Coin na 261 px. Kratimo trotočkom. */
-    .coin-name{font-size:.68rem; max-width:96px; overflow:hidden; text-overflow:ellipsis;}
+    th{padding:8px 3px; font-size:.6rem;}
+    td{padding:8px 3px;}
+    /* Nowrap na ćeliji Coina značio je da se stupac ne može stisnuti ispod
+       svoje najduže linije — tablica je zato prelazila rub ekrana. Ovdje smije
+       prelomiti (oznaka NOVO/PRIKOVAN pada u drugi red), a samo ime ostaje u
+       jednom retku s trotočkom. */
+    td.c-coin{white-space:normal;}
+    .coin-name{font-size:.68rem; max-width:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    /* Coin guta sav višak širine, pa se brojke drže desnog ruba. Bez ovoga
+       browser razlije višak po svim stupcima i nasred tablice zjapi procijep.
+       Na širokom ekranu je obrnuto — ondje je razlivanje uravnoteženije. */
+    th.c-coin, td.c-coin{width:100%;}
     .src{font-size:.55rem; padding:1px 4px; margin-left:4px;}
     /* Burza je metapodatak — na telefonu ustupa mjesto. NOVO i PRIKOVAN ostaju: to je signal. */
     .src.binance, .src.bybit{display:none;}
-    .c-hide-m{display:none;}
+    /* Bodovi su samo zbroj predznaka koje Δ stupci već pokazuju — na telefonu
+       ustupaju mjesto rangu i postocima, koji nose više. */
+    .c-pts{display:none;}
   }
 </style>
 </head>
@@ -358,7 +367,7 @@
 <div class="table-wrap">
   <table id="tbl">
     <thead><tr id="thr"></tr></thead>
-    <tbody id="tb"><tr><td style="padding:30px;text-align:center;color:var(--muted)" colspan="9">Učitavam…</td></tr></tbody>
+    <tbody id="tb"><tr><td style="padding:30px;text-align:center;color:var(--muted)" colspan="7">Učitavam…</td></tr></tbody>
   </table>
 </div>
 
@@ -1238,12 +1247,14 @@ function renderTable(){
   const arr=k=>sortKey===k?`<span style="color:var(--accent)">${sortDir>0?' ▲':' ▼'}</span>`:'';
   const winLbl=settings.chgWin;
   $('thr').innerHTML=`<th class="l" data-k="rank" title="Rang po market capu">#${arr('rank')}</th>`+
-    `<th class="l c-hide-m" data-k="rankDelta" title="Promjena ranga kroz prozor panela Promjene (${winLbl}). Klikni za najveće skakače.">Δ ${winLbl}${arr('rankDelta')}</th>`+
-    `<th class="l" data-k="base">Coin${arr('base')}</th>`+
+    `<th class="l" data-k="rankDelta" title="Promjena ranga kroz prozor panela Promjene (${winLbl}). Klikni za najveće skakače.">Δ ${winLbl}${arr('rankDelta')}</th>`+
+    `<th class="l c-coin" data-k="base">Coin${arr('base')}</th>`+
     `<th data-k="price" title="Zadnja cijena — close 4h svijeće u tijeku, isti izvor kao Δ 4h">Cijena${arr('price')}</th>`+
-    TFS.map(tf=>`<th data-k="a_${tf}" title="Iznad ili ispod EMA200 na ${TF_LABEL[tf]}">${TF_LABEL[tf]}${arr('a_'+tf)}</th>`).join('')+
-    TFS.map(tf=>`<th class="c-hide-m" data-k="d_${tf}" title="Postotna udaljenost od EMA200 na ${TF_LABEL[tf]}">Δ ${TF_LABEL[tf]}${arr('d_'+tf)}</th>`).join('')+
-    `<th data-k="pts" title="1 bod po TF-u iznad EMA200. Klikni za sortiranje.">Bodovi${arr('pts')}</th>`;
+    // Stupci sa strelicama ▲/▼ su izbačeni: "above" je definiran kao dist >= 0,
+    // pa je strelica bila doslovno predznak postotka do njega. Boja pozadine
+    // koju su nosili preselila je na Δ ćelije — pregled ostaje, redundancija ode.
+    TFS.map(tf=>`<th data-k="d_${tf}" title="Postotna udaljenost od EMA200 na ${TF_LABEL[tf]}. Predznak govori je li coin iznad ili ispod.">Δ ${TF_LABEL[tf]}${arr('d_'+tf)}</th>`).join('')+
+    `<th class="c-pts" data-k="pts" title="1 bod po TF-u iznad EMA200. Klikni za sortiranje.">Bodovi${arr('pts')}</th>`;
   [...$('thr').children].forEach(th=>{th.onclick=()=>{const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else{sortKey=k;sortDir=1;} renderTable();};});
 
   const rows=coins.map(c=>{
@@ -1253,7 +1264,6 @@ function renderTable(){
     for(const tf of TFS){
       const m=live.get(c.base)?.[tf];
       const b=m?[...m.values()].pop():null;
-      o['a_'+tf]=b?(b.above?1:0):null;
       o['d_'+tf]=b?b.dist:null;
       // TFS počinje s '4h', pa prvi pogodak daje najsvježiju cijenu;
       // 1d close upada samo ako 4h serija fali.
@@ -1267,25 +1277,25 @@ function renderTable(){
     if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
     return (typeof va==='string'?va.localeCompare(vb):va-vb)*sortDir;
   });
-  $('tblSub').innerHTML=`— sortirano po <b>${({rank:'rangu (market cap)',base:'imenu',price:'cijeni',pts:'bodovima',rankDelta:'skoku ranga'})[sortKey]||sortKey}</b> · `
+  $('tblSub').innerHTML=`— sortirano po <b>${({rank:'rangu (market cap)',base:'imenu',price:'cijeni',pts:'bodovima',rankDelta:'skoku ranga',
+      d_4h:'udaljenosti od EMA200 (4h)', d_1d:'udaljenosti od EMA200 (1D)'})[sortKey]||sortKey}</b> · `
     +`${rows.length-pinnedSet.size} u izračunu${pinnedSet.size?` + ${pinnedSet.size} prikovano`:''} · klikni stupac za drugi poredak`;
   const link=r=>`<a class="cg" href="${esc(cgUrl(r))}" target="_blank" rel="noopener noreferrer" title="Otvori ${esc(r.base)} na CoinGecko">`;
   const novo=r=>r.novi?` <span class="src novo" title="Ušao u Top ${settings.topN} unutar prozora ${settings.chgWin}">NOVO</span>`:'';
   $('tb').innerHTML=rows.map(r=>r.pinned?`<tr style="opacity:.45">
     <td class="l" style="color:var(--muted)">${r.rank??'—'}</td>
-    <td class="l c-hide-m" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
-    <td class="l">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src" style="background:var(--amber-bg);color:var(--amber)">PRIKOVAN</span><div class="coin-name">${link(r)}${esc(r.name)}</a> — ne trendira, isključen iz izračuna</div></td>
+    <td class="l" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
+    <td class="l c-coin">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src" style="background:var(--amber-bg);color:var(--amber)">PRIKOVAN</span><div class="coin-name">${link(r)}${esc(r.name)}</a> — ne trendira, isključen iz izračuna</div></td>
     <td class="price">${fmtPrice(r.price)}</td>
-    ${TFS.map(()=>`<td class="cell-na">—</td>`).join('')}${TFS.map(()=>`<td class="cell-na c-hide-m">—</td>`).join('')}
-    <td class="cell-na">—</td></tr>`:`<tr>
+    ${TFS.map(()=>`<td class="cell-na">—</td>`).join('')}
+    <td class="cell-na c-pts">—</td></tr>`:`<tr>
     <td class="l" style="color:var(--muted)">${r.rank??'—'}</td>
-    <td class="l c-hide-m" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
-    <td class="l">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src ${r.src}">${r.src==='binance'?'BIN':'BYBIT'}</span><div class="coin-name">${link(r)}${esc(r.name)}</a></div></td>
+    <td class="l" style="font-size:.78rem">${rankArrow(r.rankDelta)}</td>
+    <td class="l c-coin">${link(r)}<b>${esc(r.base)}</b></a>${novo(r)} <span class="src ${r.src}">${r.src==='binance'?'BIN':'BYBIT'}</span><div class="coin-name">${link(r)}${esc(r.name)}</a></div></td>
     <td class="price">${fmtPrice(r.price)}</td>
-    ${TFS.map(tf=>{const a=r['a_'+tf]; return a==null?`<td class="cell-na">n/a</td>`:`<td class="${a?'cell-above':'cell-below'}">${a?'▲':'▼'}</td>`;}).join('')}
-    ${TFS.map(tf=>{const d=r['d_'+tf]; return d==null?`<td class="cell-na c-hide-m">—</td>`:`<td class="c-hide-m" style="color:${d>=0?'var(--green)':'var(--red)'}">${fmtPct(d,true)}</td>`;}).join('')}
-    <td><b>${r.full?r.pts+'/'+TFS.length:'—'}</b></td></tr>`).join('')
-    || `<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--muted)">Nema podataka.</td></tr>`;
+    ${TFS.map(tf=>{const d=r['d_'+tf]; return d==null?`<td class="cell-na">n/a</td>`:`<td class="${d>=0?'cell-above':'cell-below'}">${fmtPct(d,true)}</td>`;}).join('')}
+    <td class="c-pts"><b>${r.full?r.pts+'/'+TFS.length:'—'}</b></td></tr>`).join('')
+    || `<tr><td colspan="7" style="padding:30px;text-align:center;color:var(--muted)">Nema podataka.</td></tr>`;
 }
 
 // ============ init ============
