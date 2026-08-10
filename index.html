@@ -115,8 +115,17 @@
   .legend span{cursor:pointer; user-select:none;}
   .legend span.off{opacity:.35; text-decoration:line-through;}
   .legend .sw{display:inline-block; width:16px; height:3px; border-radius:2px; margin-right:6px; vertical-align:3px;}
+  .zoom-group{display:flex; gap:5px; flex-wrap:wrap;}
+  .zoom-group .chip{min-width:32px; text-align:center;}
+  .zoom-group .chip.dim{opacity:.4; cursor:default;}
   .chart-wrap{position:relative; height:340px;}
+  /* Visinu grafa vuče i hvatište u donjem desnom kutu — ali samo tamo gdje
+     postoji precizan pokazivač; prst nema što uhvatiti na 8 piksela kuta. */
+  @media(pointer:fine){ .chart-wrap{resize:vertical; overflow:hidden; min-height:170px; max-height:85vh;} }
   #chart{position:absolute; inset:0; width:100%; height:100%;}
+  #chart.grabbing{cursor:grabbing;}
+  #chart.grab{cursor:grab;}
+  .chart-hint{color:var(--muted); font-size:.7rem; margin-top:8px; line-height:1.5;}
   .tip{position:absolute; pointer-events:none; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.76rem; line-height:1.55; display:none; z-index:5; white-space:nowrap; box-shadow:0 8px 24px rgba(0,0,0,.4);}
   .tip .d{color:var(--muted); margin-bottom:4px;}
 
@@ -345,12 +354,14 @@
     <div class="chart-title">Povijest</div>
     <div class="src-group" id="srcGroup"></div>
     <div class="range-group" id="rangeGroup"></div>
+    <div class="zoom-group" id="zoomGroup"></div>
   </div>
   <div class="legend" id="legend"></div>
   <div class="chart-wrap">
     <canvas id="chart"></canvas>
     <div class="tip" id="tip"></div>
   </div>
+  <div class="chart-hint" id="chartHint"></div>
 </div>
 
 <div class="chg-panel" id="chgPanel">
@@ -385,7 +396,8 @@ const CLOSING_OFFSET={'4h':20*36e5,'1d':0};
 const STABLES=new Set(['USDT','USDC','BUSD','DAI','TUSD','USDP','FDUSD','PYUSD','USDD','USDE','USDS','USD1','GUSD','FRAX','LUSD','EURC','EURT','RLUSD','USDG','USYC','BUIDL','USDY','SUSDE','SUSDS','WBTC','WETH','STETH','WSTETH','WEETH','CBBTC','WBETH','RETH','METH','EZETH','RSETH','SOLVBTC','LBTC','BSC-USD',
   'USDF','USDGO','USD0','USX','YLDS','A7A5','GHO','EUTBL','EURSAFO','USTB','OUSG','JTRSY','JAAA','BCAP','FIGR_HELOC',
   // roba — zlato se miče pa ga volatilnost ne hvata; jedina obrana je ime, i ta grana trune
-  'XAUT','PAXG']);
+  // KAU/KAG dodani 8.8.2026 preventivno: KAU je bio #119, danas bez spot para.
+  'XAUT','PAXG','KAU','KAG']);
 
 // .v2 = reset spremljenih postavki. Stari default je skrivao "% iznad 4h" na grafu,
 // pa je taj izbor ostao zapisan kod svakoga tko je app već otvorio.
@@ -406,7 +418,7 @@ const CHG_WINS={'7d':7,'30d':30,'90d':90};
 // Redoslijed prikaza: 1D prvo. Režim je važniji od taktike, pa ide gore.
 // (TFS je redoslijed računanja i ostaje 4h,1d — ne diraj, veže se na bazu.)
 const SHOW_TFS=['1d','4h'];
-let settings=Object.assign({topN:120, emaLen:200, range:'6m', hidden:[], src:'db', auto:true, autoMin:30, chgWin:'7d'},
+let settings=Object.assign({topN:120, emaLen:200, range:'6m', hidden:[], src:'db', auto:true, autoMin:30, chgWin:'7d', chartH:0},
   JSON.parse(localStorage.getItem(LS.set)||'{}'));
 let cfg=JSON.parse(localStorage.getItem(LS.cfg)||'{"url":"","key":""}');
 
@@ -1118,13 +1130,90 @@ function visibleHist(){
   return h.filter(x=>x.ts>=cut);
 }
 
+// ---- zum po vremenskoj osi ----
+// `view` je prozor indeksa unutar visibleHist(). null = cijeli raspon.
+// Namjerno se ne pamti u localStorage: raspon (1M/3M/…) je odluka, zum je
+// pogled od trenutka — nakon osvježenja se vraća cijeli raspon.
+const MIN_TOCAKA=4;
+let view=null;
+function resetZoom(){ view=null; }
+// Prozor se svaki put reže na trenutnu duljinu niza: podaci se osvježavaju
+// ispod nas (novi dan, druga širina raspona) i stari indeksi znaju ispasti van.
+function clampView(n){
+  if(!view) return null;
+  if(n<=MIN_TOCAKA){ view=null; return null; }
+  let span=Math.max(MIN_TOCAKA-1,Math.min(n-1,view.i1-view.i0));
+  let i0=Math.max(0,Math.min(n-1-span,view.i0));
+  view=(span>=n-1)?null:{i0,i1:i0+span};
+  return view;
+}
+function chartData(){
+  const h=visibleHist(), v=clampView(h.length);
+  return v?h.slice(v.i0,v.i1+1):h;
+}
+// factor<1 zumira unutra, >1 vani. `f` je 0..1 — mjesto pod kursorom/prstima
+// koje mora ostati na istom pikselu, inače graf bježi ispod ruke.
+function zoomBy(factor,f){
+  const n=visibleHist().length; if(n<=MIN_TOCAKA) return;
+  const v=clampView(n)||{i0:0,i1:n-1};
+  const span=v.i1-v.i0;
+  let ns=Math.round(span*factor);
+  if(ns===span) ns=span+(factor<1?-1:1);          // korak mora nešto pomaknuti
+  ns=Math.max(MIN_TOCAKA-1,Math.min(n-1,ns));
+  if(ns>=n-1){ view=null; drawChart(); syncTip(); return; }
+  let i0=Math.round(v.i0+span*f-ns*f);
+  i0=Math.max(0,Math.min(n-1-ns,i0));
+  view={i0,i1:i0+ns};
+  drawChart(); syncTip();
+}
+// Zove se iz drawChart, dakle i pri svakom pomaku prsta — pa se DOM dira
+// samo kad se stanje stvarno promijenilo; inače bi gumbi treperili.
+let zoomSig='';
+function updateZoomUi(){
+  const g=$('zoomGroup'); if(!g) return;
+  const n=visibleHist().length, v=clampView(n);
+  const zoomed=!!v, mogucZum=n>MIN_TOCAKA;
+  const uzak=window.innerWidth<560;
+  const sig=`${n}|${v?v.i0+'-'+v.i1:'sve'}|${settings.chartH}|${uzak}`;
+  if(sig===zoomSig) return;
+  zoomSig=sig;
+  g.innerHTML='';
+  const chip=(txt,title,fn,dim)=>{
+    const el=document.createElement('div');
+    el.className='chip'+(dim?' dim':''); el.textContent=txt; el.title=title;
+    if(!dim) el.onclick=fn;
+    g.appendChild(el);
+  };
+  chip('−','Odzumiraj (šire)',()=>zoomBy(1.6,0.5),!zoomed);
+  chip('+','Zumiraj (uže)',()=>zoomBy(1/1.6,0.5),!mogucZum);
+  if(zoomed) chip('⤢ sve','Vrati cijeli raspon',()=>{resetZoom(); drawChart();});
+  chip('↕','Visina grafa',()=>{
+    const H=[250,340,440,560], i=H.indexOf(settings.chartH);
+    settings.chartH=H[(i+1)%H.length]; saveSet(); applyChartH();
+  });
+  // Uputa se piše za ruku koja je drži: na telefonu nema kotačića ni kuta
+  // za povlačenje, pa bi spominjanje jednog i drugog bilo samo šum.
+  const hint=$('chartHint');
+  if(hint) hint.textContent=zoomed
+    ? (uzak ? `Zum: ${v.i1-v.i0+1} od ${n} dana · dva prsta zumiraju i pomiču · ⤢ vraća sve`
+            : `Zum: ${v.i1-v.i0+1} od ${n} dana · povuci mišem za pomak · dvoklik ili ⤢ vraća cijeli raspon`)
+    : (uzak ? 'Jedan prst čita vrijednosti · dva prsta zumiraju vremensku os · ↕ mijenja visinu grafa.'
+            : 'Kotačić miša zumira vremensku os, povlačenje pomiče · ↕ mijenja visinu (ili povuci donji desni kut).');
+}
+// Visina se pamti jer je to izbor o ekranu, ne o podacima. 0 = kako je CSS rekao.
+function applyChartH(){
+  const w=document.querySelector('.chart-wrap'); if(!w) return;
+  w.style.height=settings.chartH?settings.chartH+'px':'';
+  drawChart();
+}
+
 function buildChips(){
   const s=$('srcGroup'); s.innerHTML='';
   for(const [k,lbl] of [['db',`Iskrena (${histDB.length})`],['calc','Skica (pristrana)']]){
     const el=document.createElement('div');
     el.className='chip'+(settings.src===k?' on':'')+(k==='calc'?' bias':'');
     el.textContent=lbl;
-    el.onclick=()=>{settings.src=k; saveSet(); updateBiasWarn(); buildChips(); drawChart();};
+    el.onclick=()=>{settings.src=k; resetZoom(); saveSet(); updateBiasWarn(); buildChips(); drawChart();};
     s.appendChild(el);
   }
   const r=$('rangeGroup'); r.innerHTML='';
@@ -1132,9 +1221,10 @@ function buildChips(){
     const el=document.createElement('div');
     el.className='chip'+(settings.range===k?' on':'');
     el.textContent=k==='max'?'Max':k.toUpperCase();
-    el.onclick=()=>{settings.range=k; saveSet(); buildChips(); drawChart();};
+    el.onclick=()=>{settings.range=k; resetZoom(); saveSet(); buildChips(); drawChart();};
     r.appendChild(el);
   }
+  zoomSig=''; updateZoomUi();
 }
 function renderLegend(){
   const l=$('legend'); l.innerHTML='';
@@ -1149,15 +1239,16 @@ function renderLegend(){
 }
 
 let chartGeom=null;
+let hoverIdx=null;   // dan pod kursorom/prstom — nosi okomicu i kružiće
 function drawChart(){
   const c=$('chart'), ctx=c.getContext('2d');
   const dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight;
   c.width=W*dpr; c.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  const data=visibleHist(), act=activeSeries();
+  const data=chartData(), act=activeSeries();
   if(!data.length||!act.length){
     ctx.fillStyle='#8b96a8'; ctx.font='14px Segoe UI'; ctx.textAlign='center';
     ctx.fillText(settings.src==='db'?'Iskrena povijest je prazna — cron još nije upisao nijedan dan.':'Nema podataka.',W/2,H/2);
-    chartGeom=null; return;
+    chartGeom=null; updateZoomUi(); return;
   }
   const P={l:42,r:58,t:12,b:26}, iw=W-P.l-P.r, ih=H-P.t-P.b;
   const x=i=>P.l+(data.length===1?iw/2:i/(data.length-1)*iw);
@@ -1205,7 +1296,36 @@ function drawChart(){
       }
     }
   }
-  chartGeom={data,act,x,yL,yR,P,iw,W,H};
+
+  // Okomica pod prstom/kursorom: bez nje se iz oblačića ne vidi NA KOJEM danu
+  // stojiš — pogotovo kad su tri krivulje blizu. Uz crtu idu i kružići na
+  // svakoj seriji, pa se broj iz oblačića veže za točku na grafu.
+  if(hoverIdx!=null && hoverIdx<data.length){
+    const hx=x(hoverIdx), d=data[hoverIdx];
+    ctx.save();
+    ctx.strokeStyle='rgba(231,236,243,.45)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,P.t+ih); ctx.stroke(); ctx.setLineDash([]);
+    for(const s of act){
+      const v=seriesVal(d,s.key); if(v==null) continue;
+      const py=s.axis==='r'?yR(v):yL(v);
+      ctx.beginPath(); ctx.arc(hx,py,4.5,0,7);
+      ctx.fillStyle=s.color; ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle='#131824'; ctx.stroke();
+    }
+    // Datum na osi — da se ne mora tražiti koja od oznaka dolje pripada crti.
+    const t=(W<520?new Date(d.ts).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit'}):fmtDate(d.ts));
+    ctx.font='11px Segoe UI'; ctx.textAlign='center';
+    const tw=ctx.measureText(t).width+12;
+    const bx=Math.max(P.l,Math.min(W-P.r-tw,hx-tw/2));
+    ctx.fillStyle='#1a2130'; ctx.strokeStyle='#232c3f'; ctx.lineWidth=1;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(bx,H-20,tw,17,4); else ctx.rect(bx,H-20,tw,17);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#e7ecf3'; ctx.fillText(t,bx+tw/2,H-8);
+    ctx.restore();
+  }
+  chartGeom={data,act,x,yL,yR,P,iw,ih,W,H};
+  updateZoomUi();
 }
 
 // Jedna funkcija za miš i za prst — na mobitelu `mousemove` ne postoji,
@@ -1216,6 +1336,8 @@ function showTipAt(clientX){
   const r=$('chart').getBoundingClientRect();
   let i=Math.round((clientX-r.left-P.l)/iw*(data.length-1));
   i=Math.max(0,Math.min(data.length-1,i));
+  lastX=clientX;
+  if(i!==hoverIdx){ hoverIdx=i; drawChart(); }
   const d=data[i], tip=$('tip');
   let html=`<div class="d">${fmtDate(d.ts)}${d.backfilled?' · popunjeno':''}</div>`;
   for(const s of act){
@@ -1228,17 +1350,94 @@ function showTipAt(clientX){
   tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';
   tip.style.top='12px';
 }
-const hideTip=()=>{$('tip').style.display='none';};
-let tipTimer=null;
-$('chart').addEventListener('mousemove',e=>showTipAt(e.clientX));
-$('chart').addEventListener('mouseleave',hideTip);
-// passive: CSS `touch-action:pan-y` već odlučuje što je scroll a što prevlačenje,
-// pa nemamo što sprječavati — a passive listener ne usporava scroll stranice.
-const onTouch=e=>{ if(!e.touches[0]) return; clearTimeout(tipTimer); showTipAt(e.touches[0].clientX); };
-$('chart').addEventListener('touchstart',onTouch,{passive:true});
-$('chart').addEventListener('touchmove',onTouch,{passive:true});
+const hideTip=()=>{ $('tip').style.display='none'; if(hoverIdx!=null){ hoverIdx=null; drawChart(); } };
+let tipTimer=null, lastX=null;
+// Nakon zuma se pod istim pikselom nalazi drugi dan — oblačić i okomica se
+// moraju prelijepiti, inače pokazuju datum koji je ondje bio prije poteza.
+const syncTip=()=>{ if(lastX!=null && $('tip').style.display==='block') showTipAt(lastX); };
+
+// ---- miš: hover čita, povlačenje pomiče, kotačić zumira ----
+const cnv=$('chart');
+let drag=null;   // {x, i0} — pomak se računa od početka poteza, ne zbrajanjem
+                 // sitnih pomaka: zbrajanje zaokruženih koraka odluta.
+const canPan=()=>!!view;
+function panFrom(clientX){
+  if(!drag||!chartGeom) return;
+  const n=visibleHist().length, span=chartGeom.data.length-1;
+  if(span<1) return;
+  const per=chartGeom.iw/span;
+  let i0=drag.i0-Math.round((clientX-drag.x)/per);
+  i0=Math.max(0,Math.min(n-1-span,i0));
+  if(view && i0!==view.i0){ view={i0,i1:i0+span}; drawChart(); }
+}
+cnv.addEventListener('mousedown',e=>{
+  if(!canPan()) return;
+  drag={x:e.clientX,i0:view.i0}; cnv.classList.add('grabbing'); hideTip(); e.preventDefault();
+});
+window.addEventListener('mousemove',e=>{ if(drag) panFrom(e.clientX); });
+window.addEventListener('mouseup',()=>{ drag=null; cnv.classList.remove('grabbing'); });
+cnv.addEventListener('mousemove',e=>{
+  cnv.classList.toggle('grab',canPan());
+  if(!drag) showTipAt(e.clientX);
+});
+cnv.addEventListener('mouseleave',()=>{ if(!drag) hideTip(); });
+cnv.addEventListener('dblclick',()=>{ resetZoom(); drawChart(); syncTip(); });
+// Kotačić zumira umjesto da miče stranicu — zato preventDefault, zato ne-passive.
+cnv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cnv.getBoundingClientRect(), P=chartGeom?chartGeom.P:{l:42,r:58};
+  const iw=(chartGeom?chartGeom.iw:r.width-P.l-P.r)||1;
+  const f=Math.max(0,Math.min(1,(e.clientX-r.left-P.l)/iw));
+  zoomBy(e.deltaY>0?1.25:1/1.25,f);
+},{passive:false});
+
+// ---- prst: jedan čita, dva zumiraju ----
+// CSS `touch-action:pan-y` pušta okomiti scroll stranice, a vodoravno
+// prevlačenje ostavlja nama. Dva prsta hvatamo sami (preventDefault), inače
+// bi preglednik htio zumirati cijelu stranicu.
+let pinch=null;   // {d, span, i0, cx}
+const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+const midX=t=>(t[0].clientX+t[1].clientX)/2;
+function startPinch(t){
+  const n=visibleHist().length, v=clampView(n)||{i0:0,i1:n-1};
+  pinch={d:Math.max(1,dist(t)), i0:v.i0, span:v.i1-v.i0, cx:midX(t)};
+}
+cnv.addEventListener('touchstart',e=>{
+  clearTimeout(tipTimer);
+  if(e.touches.length>=2){ hideTip(); startPinch(e.touches); }
+  else if(e.touches[0]){ pinch=null; showTipAt(e.touches[0].clientX); }
+},{passive:true});
+cnv.addEventListener('touchmove',e=>{
+  clearTimeout(tipTimer);
+  if(e.touches.length>=2){
+    e.preventDefault();
+    if(!pinch){ startPinch(e.touches); return; }
+    const n=visibleHist().length; if(n<=MIN_TOCAKA) return;
+    const r=cnv.getBoundingClientRect(), P=chartGeom?chartGeom.P:{l:42,r:58};
+    const iw=(chartGeom?chartGeom.iw:r.width-P.l-P.r)||1;
+    const frac=px=>Math.max(0,Math.min(1,(px-r.left-P.l)/iw));
+    // Razmicanje prstiju = manji raspon dana. Dan koji je bio pod sredinom
+    // hvata ostaje pod sredinom hvata — pa isti pokret ujedno i pomiče graf.
+    let ns=Math.round(pinch.span*(pinch.d/Math.max(1,dist(e.touches))));
+    ns=Math.max(MIN_TOCAKA-1,Math.min(n-1,ns));
+    if(ns>=n-1){ view=null; }
+    else{
+      const sidro=pinch.i0+pinch.span*frac(pinch.cx);
+      let i0=Math.round(sidro-ns*frac(midX(e.touches)));
+      i0=Math.max(0,Math.min(n-1-ns,i0));
+      view={i0,i1:i0+ns};
+    }
+    drawChart(); syncTip();
+    return;
+  }
+  // Jedan prst uvijek čita vrijednosti; pomak zumiranog grafa ide s dva prsta,
+  // inače bi na mobitelu nestao jedini način da se brojke uopće vide.
+  if(e.touches[0]) showTipAt(e.touches[0].clientX);
+},{passive:false});
 // Prst se digne i tooltip ostane još malo — inače nestane prije nego ga pročitaš.
-$('chart').addEventListener('touchend',()=>{ clearTimeout(tipTimer); tipTimer=setTimeout(hideTip,3000); },{passive:true});
+cnv.addEventListener('touchend',e=>{
+  if(e.touches.length===0){ pinch=null; drag=null; clearTimeout(tipTimer); tipTimer=setTimeout(hideTip,3000); }
+},{passive:true});
 
 // ============ tablica ============
 function renderTable(){
@@ -1326,7 +1525,15 @@ $('topN').onchange=e=>{settings.topN=+e.target.value; saveSet();};
 $('emaLen').onchange=e=>{settings.emaLen=+e.target.value; saveSet();};
 $('btnRefresh').onclick=refresh;
 window.addEventListener('resize',()=>drawChart());
+// Graf se prekriva i kad se ručno rastegne hvatištem — a to `resize` na
+// prozoru ne vidi, pa promjenu visine gledamo na samom okviru.
+if(window.ResizeObserver){
+  let t=null;
+  new ResizeObserver(()=>{ clearTimeout(t); t=setTimeout(drawChart,40); })
+    .observe(document.querySelector('.chart-wrap'));
+}
 if(!cfg.url) toggleSheet('cfgBox');
+if(settings.chartH) applyChartH();
 drawGauge(null); buildChips(); renderLegend(); renderChanges(); refresh();
 </script>
 </body>
