@@ -48,7 +48,13 @@ const STABLES = new Set([
   // uhvatiti; jedina obrana je ime. Znači: OVA GRANA TRUNE. Novi tokenizirani
   // zlato/srebro/nafta, ili tokenizirana dionica, ušetali bi neprimijećeno.
   // Jedina stvarna obrana je tjedni pogled u market_breadth_entrants.
-  "XAUT","PAXG",
+  //
+  // KAU (Kinesis Gold) i KAG (Kinesis Silver) dodani 8.8.2026. u tjednoj provjeri:
+  // KAU je tada bio #119 po market capu i NIJE ušao samo zato što nema USDT spot
+  // par ni na Binanceu ni na Bybitu. Dan kad ga dobije, ušao bi tiho — vol filter
+  // ga ne može uhvatiti jer prati cijenu zlata, a ona se miče. Ovo je preventiva:
+  // na dan dodavanja mijenja točno ništa u brojci.
+  "XAUT","PAXG","KAU","KAG",
 ]);
 
 const dayOf = (ts: number) => Math.floor(ts / DAY) * DAY;
