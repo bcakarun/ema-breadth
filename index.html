@@ -6,8 +6,12 @@
 <title>EMA Breadth — zdravlje kripto tržišta</title>
 <style>
   :root{
-    --bg:#0b0e14; --panel:#131824; --panel2:#1a2130; --border:#232c3f;
-    --text:#e7ecf3; --muted:#8b96a8; --accent:#4f8cff;
+    /* Crna crna pozadina: sve plohe su ista crna, razlikuju ih samo okviri. */
+    --bg:#000000; --panel:#000000; --panel2:#000000; --border:#ffffff;
+    /* Unutarnje crte (redovi tablice, pregrade) ne smiju biti pune bijele —
+       inače stranica izgleda kao karirani papir, a ne kao okvir oko sadržaja. */
+    --line:rgba(255,255,255,.28);
+    --text:#ffffff; --muted:#ffffff; --accent:#4f8cff;
     --green:#22c55e; --green-bg:rgba(34,197,94,.12);
     --red:#ef4444; --red-bg:rgba(239,68,68,.12);
     --amber:#f5b942; --amber-bg:rgba(245,185,66,.12);
@@ -15,7 +19,7 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; padding:16px; min-height:100vh;}
   h1{font-size:1.35rem; display:flex; align-items:center; gap:10px; margin-bottom:4px;}
-  h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--green); box-shadow:0 0 8px var(--green);}
+  h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--green);}
   .sub{color:var(--muted); font-size:.85rem; margin-bottom:14px;}
 
   /* ===== zaglavlje: naslov lijevo, ikone desno =====
@@ -32,7 +36,7 @@
   }
   button.icon svg{width:19px; height:19px;}
   button.icon:hover{color:var(--text); border-color:var(--accent);}
-  button.icon.on{background:rgba(79,140,255,.15); border-color:var(--accent); color:var(--text);}
+  button.icon.on{background:var(--bg); border-color:var(--accent); color:var(--text);}
   button.icon.go{background:var(--accent); border-color:var(--accent); color:#fff;}
   button.icon.go:hover{filter:brightness(1.1);}
   button.icon:disabled{opacity:.55; cursor:default;}
@@ -64,7 +68,7 @@
   .statusbar{display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
   #status{color:var(--muted); font-size:.85rem;}
   #autoStatus{color:var(--muted); font-size:.8rem;}
-  .progress{flex:1; min-width:140px; max-width:340px; height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; display:none;}
+  .progress{flex:1; min-width:140px; max-width:340px; height:6px; background:var(--bg); border:1px solid var(--line); border-radius:4px; overflow:hidden; display:none;}
   .progress .fill{height:100%; width:0%; background:var(--accent); transition:width .2s;}
 
   .err{background:var(--red-bg); border:1px solid var(--red); color:#ffb4b4; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:.85rem; display:none;}
@@ -78,7 +82,7 @@
      Otvorena je uvijek najviše jedna — dvije bi brojke odgurale ispod ruba ekrana. */
   .sheet{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; display:none;}
   .sheet.open{display:block;}
-  .sheet-sec + .sheet-sec{margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
+  .sheet-sec + .sheet-sec{margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
   .sheet-h{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:9px;}
   .sheet-row{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;}
   .sheet .hint{font-size:.75rem; color:var(--muted); margin-top:9px; line-height:1.55;}
@@ -109,7 +113,7 @@
   .src-group,.range-group{display:flex; gap:5px; flex-wrap:wrap;}
   .range-group{margin-left:auto;}
   .chip{background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:5px 11px; font-size:.8rem; cursor:pointer; user-select:none; color:var(--muted);}
-  .chip.on{background:rgba(79,140,255,.15); border-color:var(--accent); color:var(--text);}
+  .chip.on{background:var(--bg); border-color:var(--accent); color:var(--text);}
   .chip.bias.on{background:var(--amber-bg); border-color:var(--amber); color:#ffe0a3;}
   .legend{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; font-size:.78rem; color:var(--muted);}
   .legend span{cursor:pointer; user-select:none;}
@@ -126,7 +130,7 @@
   #chart.grabbing{cursor:grabbing;}
   #chart.grab{cursor:grab;}
   .chart-hint{color:var(--muted); font-size:.7rem; margin-top:8px; line-height:1.5;}
-  .tip{position:absolute; pointer-events:none; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.76rem; line-height:1.55; display:none; z-index:5; white-space:nowrap; box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .tip{position:absolute; pointer-events:none; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:.76rem; line-height:1.55; display:none; z-index:5; white-space:nowrap;}
   .tip .d{color:var(--muted); margin-bottom:4px;}
 
   /* --- panel Promjene --- */
@@ -137,7 +141,7 @@
   @media(max-width:860px){ .chg-grid{grid-template-columns:1fr;} }
   .chg-col{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
   .chg-col h4{font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; color:var(--muted); font-weight:600;}
-  .chg-row{display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid rgba(255,255,255,.045); font-size:.84rem; flex-wrap:wrap;}
+  .chg-row{display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid var(--line); font-size:.84rem; flex-wrap:wrap;}
   .chg-row:last-child{border-bottom:none;}
   .chg-row .b{font-weight:700; min-width:54px;}
   .chg-row .num{margin-left:auto; font-variant-numeric:tabular-nums; white-space:nowrap;}
@@ -155,12 +159,12 @@
 
   .table-wrap{background:var(--panel2); border:1px solid var(--border); border-radius:12px; overflow-x:auto;}
   table{width:100%; border-collapse:collapse; font-size:.88rem; min-width:700px;}
-  th{position:sticky; top:0; background:var(--panel2); text-align:right; padding:10px 12px; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer;}
+  th{position:sticky; top:0; background:var(--panel2); text-align:right; padding:10px 12px; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer;}
   th:hover{color:var(--text);}
   th.l, td.l{text-align:left;}
-  td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap;}
+  td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap;}
   tr:last-child td{border-bottom:none;}
-  tr:hover td{background:rgba(255,255,255,.02);}
+  tr:hover td{background:rgba(255,255,255,.07);}
   .coin-name{color:var(--muted); font-size:.75rem;}
   /* Ime coina vodi na CoinGecko. Link je samo na imenu, ne na cijelom redu —
      brojevi u redu ostaju označivi mišem. */
@@ -842,12 +846,12 @@ setInterval(tickAuto,1000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tickAuto(); });
 
 // ============ gauge ============
-function scoreColor(v){ if(v==null) return '#8b96a8'; if(v>=60) return '#22c55e'; if(v>=40) return '#f5b942'; return '#ef4444'; }
+function scoreColor(v){ if(v==null) return '#ffffff'; if(v>=60) return '#22c55e'; if(v>=40) return '#f5b942'; return '#ef4444'; }
 function drawGauge(v){
   const c=$('gaugeC'), ctx=c.getContext('2d');
   const W=c.width,H=c.height,cx=W/2,cy=H*0.78,R=W*0.40,lw=W*0.085;
   ctx.clearRect(0,0,W,H); ctx.lineCap='round';
-  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,2*Math.PI); ctx.strokeStyle='#1a2130'; ctx.lineWidth=lw; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,2*Math.PI); ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=lw; ctx.stroke();
   for(const [a,b,col] of [[0,40,'rgba(239,68,68,.30)'],[40,60,'rgba(245,185,66,.30)'],[60,100,'rgba(34,197,94,.30)']]){
     ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI+(a/100)*Math.PI,Math.PI+(b/100)*Math.PI);
     ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.stroke();
@@ -856,7 +860,7 @@ function drawGauge(v){
     ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,Math.PI+(Math.max(0,Math.min(100,v))/100)*Math.PI);
     ctx.strokeStyle=scoreColor(v); ctx.lineWidth=lw; ctx.stroke();
   }
-  ctx.fillStyle='#8b96a8'; ctx.font='500 15px Segoe UI'; ctx.textAlign='center';
+  ctx.fillStyle='#ffffff'; ctx.font='500 15px Segoe UI'; ctx.textAlign='center';
   ctx.fillText('0',cx-R,cy+24); ctx.fillText('100',cx+R,cy+24);
 }
 
@@ -1113,11 +1117,13 @@ function updateBiasWarn(){
 }
 
 // ============ chart ============
+// `w` = debljina linije. Tier je najdeblji jer je zaključak, BTC najtanji i
+// iscrtkan jer je referenca — pozadina, a ne poruka.
 const SERIES_DEF=[
-  {key:'tier', label:'Tier score', color:'#4f8cff'},
-  {key:'p4h',  label:'% iznad 4h', color:'#22c55e'},
-  {key:'p1d',  label:'% iznad 1D', color:'#f5b942'},
-  {key:'btc',  label:'BTC cijena', color:'#8b96a8', axis:'r'},
+  {key:'tier', label:'Tier score', color:'#ef4444', w:3.2},
+  {key:'p4h',  label:'% iznad 4h', color:'#22c55e', w:2.1},
+  {key:'p1d',  label:'% iznad 1D', color:'#ffffff', w:2.1},
+  {key:'btc',  label:'BTC cijena', color:'#f5b942', w:1.1, dash:[5,3], axis:'r'},
 ];
 const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
 const seriesVal=(r,k)=> k==='tier'?r.tier : k==='btc'?r.btc : r.pct[k==='p4h'?'4h':'1d'];
@@ -1226,13 +1232,14 @@ function buildChips(){
   }
   zoomSig=''; updateZoomUi();
 }
+const swStyle=s=>`background:${s.dash?`repeating-linear-gradient(90deg,${s.color} 0 5px,transparent 5px 8px)`:s.color};height:${Math.max(2,Math.round(s.w||2))}px`;
 function renderLegend(){
   const l=$('legend'); l.innerHTML='';
   for(const s of SERIES_DEF){
     const off=settings.hidden.includes(s.key);
     const el=document.createElement('span');
     el.className=off?'off':'';
-    el.innerHTML=`<span class="sw" style="background:${s.color}"></span>${s.label}`;
+    el.innerHTML=`<span class="sw" style="${swStyle(s)}"></span>${s.label}`;
     el.onclick=()=>{settings.hidden=off?settings.hidden.filter(k=>k!==s.key):[...settings.hidden,s.key]; saveSet(); renderLegend(); drawChart();};
     l.appendChild(el);
   }
@@ -1246,7 +1253,7 @@ function drawChart(){
   c.width=W*dpr; c.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
   const data=chartData(), act=activeSeries();
   if(!data.length||!act.length){
-    ctx.fillStyle='#8b96a8'; ctx.font='14px Segoe UI'; ctx.textAlign='center';
+    ctx.fillStyle='#ffffff'; ctx.font='14px Segoe UI'; ctx.textAlign='center';
     ctx.fillText(settings.src==='db'?'Iskrena povijest je prazna — cron još nije upisao nijedan dan.':'Nema podataka.',W/2,H/2);
     chartGeom=null; updateZoomUi(); return;
   }
@@ -1257,9 +1264,9 @@ function drawChart(){
   const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
   const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
 
-  ctx.strokeStyle='#232c3f'; ctx.lineWidth=1; ctx.fillStyle='#8b96a8'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
+  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1; ctx.fillStyle='#ffffff'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
   for(let v=0;v<=100;v+=20){const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke(); ctx.fillText(v,P.l-8,y+4);}
-  ctx.strokeStyle='rgba(139,150,168,.45)'; ctx.setLineDash([4,4]);
+  ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.setLineDash([4,4]);
   ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
   if(act.some(s=>s.axis==='r')&&bv.length){
     ctx.textAlign='left';
@@ -1277,8 +1284,8 @@ function drawChart(){
   for(let i=0;i<data.length;i+=step) ctx.fillText(lbl(data[i].ts),x(i),H-8);
 
   for(const s of act){
-    ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=s.key==='btc'?1.3:1.9;
-    if(s.key==='btc') ctx.setLineDash([5,3]);
+    ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=s.w||1.9;
+    if(s.dash) ctx.setLineDash(s.dash);
     let started=false;
     for(let i=0;i<data.length;i++){
       const v=seriesVal(data[i],s.key);
@@ -1303,25 +1310,25 @@ function drawChart(){
   if(hoverIdx!=null && hoverIdx<data.length){
     const hx=x(hoverIdx), d=data[hoverIdx];
     ctx.save();
-    ctx.strokeStyle='rgba(231,236,243,.45)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,P.t+ih); ctx.stroke(); ctx.setLineDash([]);
     for(const s of act){
       const v=seriesVal(d,s.key); if(v==null) continue;
       const py=s.axis==='r'?yR(v):yL(v);
       ctx.beginPath(); ctx.arc(hx,py,4.5,0,7);
       ctx.fillStyle=s.color; ctx.fill();
-      ctx.lineWidth=2; ctx.strokeStyle='#131824'; ctx.stroke();
+      ctx.lineWidth=2; ctx.strokeStyle='#000000'; ctx.stroke();
     }
     // Datum na osi — da se ne mora tražiti koja od oznaka dolje pripada crti.
     const t=(W<520?new Date(d.ts).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit'}):fmtDate(d.ts));
     ctx.font='11px Segoe UI'; ctx.textAlign='center';
     const tw=ctx.measureText(t).width+12;
     const bx=Math.max(P.l,Math.min(W-P.r-tw,hx-tw/2));
-    ctx.fillStyle='#1a2130'; ctx.strokeStyle='#232c3f'; ctx.lineWidth=1;
+    ctx.fillStyle='#000000'; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
     ctx.beginPath();
     if(ctx.roundRect) ctx.roundRect(bx,H-20,tw,17,4); else ctx.rect(bx,H-20,tw,17);
     ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#e7ecf3'; ctx.fillText(t,bx+tw/2,H-8);
+    ctx.fillStyle='#ffffff'; ctx.fillText(t,bx+tw/2,H-8);
     ctx.restore();
   }
   chartGeom={data,act,x,yL,yR,P,iw,ih,W,H};
@@ -1343,7 +1350,7 @@ function showTipAt(clientX){
   for(const s of act){
     const v=seriesVal(d,s.key);
     const t=v==null?'—':(s.key==='btc'?'$'+v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toFixed(1)+(s.key==='tier'?'':'%'));
-    html+=`<div><span class="sw" style="background:${s.color}"></span>${s.label}: <b>${t}</b></div>`;
+    html+=`<div><span class="sw" style="${swStyle(s)}"></span>${s.label}: <b>${t}</b></div>`;
   }
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';

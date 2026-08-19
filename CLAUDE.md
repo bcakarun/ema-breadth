@@ -31,10 +31,17 @@ Deploy edge funkcije ide odvojeno (Supabase), git push je ne mijenja.
   zum je pogled od trenutka.
 - **Visina grafa**: gumb `↕` kruži 250/340/440/560 px i **pamti se** (`settings.chartH`);
   na računalu se okvir može i povući za donji desni kut (CSS `resize`, samo `pointer:fine`).
+- **Boje i debljine krivulja** (`SERIES_DEF`, polja `color`/`w`/`dash`): Tier score crven i
+  najdeblji (zaključak), % iznad 4h zelen i % iznad 1D bijel srednje debljine (mjerenja),
+  BTC žut, najtanji i iscrtkan (referenca, ne poruka). Legenda i oblačić crtaju kvadratić
+  iz istih polja — nova serija ne treba diranje legende.
 - Jedan prst na mobitelu uvijek čita vrijednosti — pomak je zato na dva prsta, inače bi
   nestao jedini način da se brojke vide.
 
 ## Pravila
 - Sučelje i vodiči na hrvatskom.
+- Tema je crna: sve plohe (`--bg`, `--panel`, `--panel2`) su ista crna, razlikuju ih
+  bijeli okviri (`--border`). Unutarnje crte (redovi tablice, pregrade) idu na `--line`,
+  ne na `--border` — pune bijele crte pretvore stranicu u karirani papir.
 - Samo besplatni servisi (Binance public API, Supabase free tier).
 - Sve promjene sučelja provjeriti i na uskom ekranu (~375 px), ne samo na desktopu.
