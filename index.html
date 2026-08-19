@@ -851,8 +851,8 @@ function drawGauge(v){
   const c=$('gaugeC'), ctx=c.getContext('2d');
   const W=c.width,H=c.height,cx=W/2,cy=H*0.78,R=W*0.40,lw=W*0.085;
   ctx.clearRect(0,0,W,H); ctx.lineCap='round';
-  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,2*Math.PI); ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=lw; ctx.stroke();
-  for(const [a,b,col] of [[0,40,'rgba(239,68,68,.30)'],[40,60,'rgba(245,185,66,.30)'],[60,100,'rgba(34,197,94,.30)']]){
+  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,2*Math.PI); ctx.strokeStyle='#ffffff'; ctx.lineWidth=lw; ctx.stroke();
+  for(const [a,b,col] of [[0,40,'rgba(239,68,68,.45)'],[40,60,'rgba(245,185,66,.45)'],[60,100,'rgba(34,197,94,.45)']]){
     ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI+(a/100)*Math.PI,Math.PI+(b/100)*Math.PI);
     ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.stroke();
   }
@@ -1119,11 +1119,13 @@ function updateBiasWarn(){
 // ============ chart ============
 // `w` = debljina linije. Tier je najdeblji jer je zaključak, BTC najtanji i
 // iscrtkan jer je referenca — pozadina, a ne poruka.
+// Obje breadth krivulje su namjerno bijele i jednako debele; razlikuju se po
+// okomici pod prstom i oblačiću, ne po boji.
 const SERIES_DEF=[
-  {key:'tier', label:'Tier score', color:'#ef4444', w:3.2},
-  {key:'p4h',  label:'% iznad 4h', color:'#22c55e', w:2.1},
-  {key:'p1d',  label:'% iznad 1D', color:'#ffffff', w:2.1},
-  {key:'btc',  label:'BTC cijena', color:'#f5b942', w:1.1, dash:[5,3], axis:'r'},
+  {key:'tier', label:'Tier score', color:'#ef4444', w:3},
+  {key:'p4h',  label:'% iznad 4h', color:'#ffffff', w:2},
+  {key:'p1d',  label:'% iznad 1D', color:'#ffffff', w:2},
+  {key:'btc',  label:'BTC cijena', color:'#f5b942', w:1, dash:[5,3], axis:'r'},
 ];
 const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
 const seriesVal=(r,k)=> k==='tier'?r.tier : k==='btc'?r.btc : r.pct[k==='p4h'?'4h':'1d'];
@@ -1264,9 +1266,9 @@ function drawChart(){
   const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
   const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
 
-  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1; ctx.fillStyle='#ffffff'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
+  ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1; ctx.fillStyle='#ffffff'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
   for(let v=0;v<=100;v+=20){const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke(); ctx.fillText(v,P.l-8,y+4);}
-  ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.setLineDash([4,4]);
+  ctx.strokeStyle='#ffffff'; ctx.setLineDash([4,4]);
   ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
   if(act.some(s=>s.axis==='r')&&bv.length){
     ctx.textAlign='left';
@@ -1310,7 +1312,7 @@ function drawChart(){
   if(hoverIdx!=null && hoverIdx<data.length){
     const hx=x(hoverIdx), d=data[hoverIdx];
     ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,P.t+ih); ctx.stroke(); ctx.setLineDash([]);
     for(const s of act){
       const v=seriesVal(d,s.key); if(v==null) continue;
