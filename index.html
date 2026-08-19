@@ -151,6 +151,7 @@
   .tag.down{background:var(--red-bg); color:var(--red);}
   .tag.new{background:rgba(79,140,255,.15); color:var(--accent);}
   .tag.pin{background:var(--amber-bg); color:var(--amber);}
+  .tag.novo{background:var(--accent); color:#fff; font-weight:700; letter-spacing:.06em;}
   .badge-new{background:var(--accent); color:#fff; border-radius:20px; padding:3px 10px; font-size:.72rem; font-weight:700;}
   /* Tišina mora izgledati drukčije od kvara: kad nema novosti to PIŠE.
      Prazno mjesto tada znači da se nešto pokvarilo, a ne da je mirno. */
@@ -633,7 +634,8 @@ async function loadDBHist(){
 // cijeli Top 120 s rangom, cijenom i above-flagom, point-in-time.
 // Dohvaćaju se SAMO 2-3 ciljana dana, ne cijela povijest.
 let chg={state:'init', err:null, ends:null, seenEnds:null, seenDate:null,
-         entrants:[], exits:[], up:[], down:[], byBase:new Map(), newCount:0, nNow:0, nThen:0};
+         entrants:[], exits:[], up:[], down:[], byBase:new Map(), newKeys:new Set(),
+         newCount:0, nNow:0, nThen:0};
 let seen=JSON.parse(localStorage.getItem(LS.seen)||'null');   // {date:'YYYY-MM-DD'}
 
 // Backfillani red ima CIJENE od ciljanog dana, ali RANG od dana kad je backfill
@@ -724,7 +726,8 @@ function diffDays(nowRaw, thenRaw){
 
 async function loadChanges(){
   chg={state:'load', err:null, ends:null, seenEnds:null, seenDate:seen?.date??null,
-       entrants:[], exits:[], up:[], down:[], byBase:new Map(), newCount:0, nNow:0, nThen:0};
+       entrants:[], exits:[], up:[], down:[], byBase:new Map(), newKeys:new Set(),
+       newCount:0, nNow:0, nThen:0};
   renderChanges();
   try{
     if(!cfg.url||!cfg.key){ chg.state='nocfg'; return renderChanges(); }
@@ -741,6 +744,12 @@ async function loadChanges(){
       const d=diffDays(nowRaw, raws.get(seenYmd));
       chg.newCount=d.entrants.length+d.exits.length+d.up.length+d.down.length;
       chg.seenEnds=seenYmd;
+      // Kljuc nosi i kanticu, ne samo coin: coin koji je u 30 dana pao, a od
+      // zadnjeg posjeta se dizao, ne smije dobiti NOVO na retku o padu.
+      chg.newKeys=new Set([
+        ...d.entrants.map(o=>'in:'+o.base), ...d.exits.map(o=>'out:'+o.base),
+        ...d.up.map(o=>'up:'+o.base),       ...d.down.map(o=>'down:'+o.base),
+      ]);
     }
     // Prvi posjet: zapamti gdje si stao, ali ne izmišljaj "novosti".
     if(!seen){ seen={date:lastYmd}; localStorage.setItem(LS.seen,JSON.stringify(seen)); }
@@ -937,17 +946,24 @@ const rankArrow=d=>d==null?'<span style="color:var(--muted)">—</span>'
   :d>0?`<span style="color:var(--green)">▲${d}</span>`
   :d<0?`<span style="color:var(--red)">▼${-d}</span>`:`<span style="color:var(--muted)">0</span>`;
 
+// Puna plava pločica, ista boja kao brojka "N novosti" u zaglavlju — namjerno
+// drukčija od tintanih oznaka (NOVI U TOP, ISPAO): one govore ŠTO se dogodilo,
+// ova govori KADA. Nestaje čim se klikne "Označi kao viđeno".
+const novoZnak=key=>chg.newKeys.has(key)
+  ? `<span class="tag novo" title="Ovoga nije bilo kad si zadnji put označio kao viđeno">NOVO</span>`
+  : '';
+
 function chgRow(o,dir){
   const tags=(o.tags||[]).map(t=>`<span class="tag ${TAG_LBL[t][0]}">${TAG_LBL[t][1]}</span>`).join(' ');
   const c=o.chgPct;
   const num=c==null?'':`<span class="num" style="color:${c>=0?'var(--green)':'var(--red)'}">${fmtPct(c,true)}</span>`;
   return `<div class="chg-row"><a class="cg b" href="${esc(cgUrl({base:o.base,cgId:cgIdOf(o.base)}))}" target="_blank" rel="noopener noreferrer">${esc(o.base)}</a>`
-    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>${tags}`
+    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>${novoZnak(dir+':'+o.base)}${tags}`
     +`<span style="font-size:.72rem">${rankArrow(o.rankDelta)}</span>${num}</div>`;
 }
 function chgSimple(o,kind){
   return `<div class="chg-row"><a class="cg b" href="${esc(cgUrl({base:o.base,cgId:cgIdOf(o.base)}))}" target="_blank" rel="noopener noreferrer">${esc(o.base)}</a>`
-    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>`
+    +`<span style="color:var(--muted);font-size:.72rem">#${o.rank}</span>${novoZnak(kind+':'+o.base)}`
     +`<span class="tag ${kind==='in'?'new':'down'}">${kind==='in'?'NOVI U TOP '+settings.topN:'ISPAO'}</span>`
     +(o.pinned?`<span class="tag pin">PRIKOVAN</span>`:'')+`</div>`;
 }
@@ -978,7 +994,7 @@ function renderChanges(){
   if(b) b.onclick=()=>{
     seen={date:ymd(chg.ends.last.ts)}; localStorage.setItem(LS.seen,JSON.stringify(seen));
     // seenEnds mora pasti s njima, inače redak i dalje pokazuje stari datum.
-    chg.newCount=0; chg.seenEnds=null; chg.seenDate=seen.date; renderChanges();
+    chg.newCount=0; chg.seenEnds=null; chg.seenDate=seen.date; chg.newKeys=new Set(); renderChanges();
   };
 
   const msg=t=>{ sub.textContent=''; body.innerHTML=`<div class="chg-empty">${t}</div>`; };
@@ -1119,12 +1135,10 @@ function updateBiasWarn(){
 // ============ chart ============
 // `w` = debljina linije. Tier je najdeblji jer je zaključak, BTC najtanji i
 // iscrtkan jer je referenca — pozadina, a ne poruka.
-// Obje breadth krivulje su namjerno bijele i jednako debele; razlikuju se po
-// okomici pod prstom i oblačiću, ne po boji.
 const SERIES_DEF=[
   {key:'tier', label:'Tier score', color:'#ef4444', w:3},
   {key:'p4h',  label:'% iznad 4h', color:'#ffffff', w:2},
-  {key:'p1d',  label:'% iznad 1D', color:'#ffffff', w:2},
+  {key:'p1d',  label:'% iznad 1D', color:'#22c55e', w:2},
   {key:'btc',  label:'BTC cijena', color:'#f5b942', w:1, dash:[5,3], axis:'r'},
 ];
 const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
