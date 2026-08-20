@@ -90,13 +90,33 @@
   .sheet a{color:var(--accent);}
   #emaLen{width:84px;}
 
-  .top{display:grid; grid-template-columns:260px 1fr; gap:12px; margin-bottom:12px;}
-  @media(max-width:860px){ .top{grid-template-columns:1fr;} }
+  /* Gornji red: podaci lijevo, graf desno. Graf preko cijele širine je bio
+     rastegnut bez potrebe — dan je točka, ne kilometar. */
+  .top{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+       gap:12px; margin-bottom:12px; align-items:start;}
+  .data-col{display:grid; grid-template-columns:250px minmax(0,1fr); gap:12px; align-items:stretch;}
+  .top .chart-panel{margin-bottom:0;}
+  /* Ispod ~1150 px graf više ne stane pored podataka a da ne postane crtica. */
+  @media(max-width:1150px){ .top{grid-template-columns:1fr;} }
+  @media(max-width:860px){ .data-col{grid-template-columns:1fr;} }
   .gauge{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; align-items:center; justify-content:center;}
   .gauge canvas{width:100%; max-width:220px; height:auto;}
   .gauge .val{font-size:2.6rem; font-weight:700; line-height:1; margin-top:-38px;}
   .gauge .lbl{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:6px;}
   .gauge .sub2{font-size:.75rem; color:var(--muted); margin-top:8px; text-align:center; line-height:1.5;}
+  .gauge .reg{margin-top:12px; width:100%; text-align:center;}
+  .gauge .reg .badge{display:inline-block; border:1px solid currentColor; border-radius:999px;
+                     padding:5px 13px; font-size:.82rem; font-weight:700; line-height:1.25;}
+  .gauge .reg .rnote{font-size:.72rem; color:var(--muted); margin-top:7px; line-height:1.45;}
+  .gauge .reg .rdur{font-size:.7rem; color:var(--muted); margin-top:5px;}
+  /* Traka kvalitete: koliko duboko iznad EME, u jednoj crti. */
+  .qbar{display:flex; height:8px; border-radius:999px; overflow:hidden; margin:7px 0 5px; background:var(--line);}
+  .qbar i{display:block; height:100%;}
+  .qleg{display:flex; flex-wrap:wrap; gap:4px 10px; font-size:.68rem; color:var(--muted);}
+  .qleg b{color:var(--text); font-weight:600;}
+  .rrow{display:flex; align-items:baseline; justify-content:space-between; gap:8px; font-size:.75rem; padding:3px 0;}
+  .rrow+.rrow{border-top:1px solid var(--line);}
+  .rrow span{color:var(--muted);}
 
   /* Dva stupca: 1D lijevo, 4h desno. Par se čita vodoravno, sloj okomito. */
   /* Dva stupca ostaju i na telefonu: jedan stupac je značio pola praznog
@@ -278,9 +298,16 @@
   <div class="warn" id="biasWarn"></div>
   <div class="sheet-h">Kako se ovo čita</div>
   <div class="hint" style="margin-top:0">
-    <b>Tier score</b> je postotak osvojenih bodova: svaki coin daje 1 bod za svaki timeframe u kojem je iznad EMA200.
-    Visok skor znači da tržište kao cjelina trguje iznad svoje dugoročne linije, nizak da je većina ispod nje.
-    <b>Jačina</b> je prosječna udaljenost od EMA200 — govori koliko je taj položaj uvjerljiv, ne samo je li iznad ili ispod.
+    <b>Veliki broj</b> je postotak coina iznad EMA200 na <b>1D</b>. To je mjera zdravlja: 200 dnevnih svijeća
+    je oko sedam mjeseci povijesti, dakle režim, a ne raspoloženje. <b>4h</b> je isti račun na oko 33 dana —
+    čita se uz njega, ne zbraja s njim. Kod dionica su to isti pokazatelji (% iznad 50-dnevnog i 200-dnevnog
+    prosjeka) i također se nikad ne spajaju u jedan broj: informacija je baš u razlici među njima.
+    <br><br><b>Režim</b> je ta razlika pretvorena u rečenicu — brzi visok a spori nizak znači odskok u padajućem
+    trendu, oba visoka znače zdrav trend. Granice su 60 % i 40 %, a između njih je namjerno mrtva zona da
+    oznaka ne treperi svaki dan. <b>Raspon</b> pod grafom je isti taj razmak kao broj (4h − 1D).
+    <br><br><b>Jačina</b> je prosječna udaljenost od EMA200 — govori koliko je položaj uvjerljiv, ne samo je li
+    iznad ili ispod. <b>Kvaliteta širine</b> isto: 81 % coina jedva iznad linije i 81 % duboko iznad nisu isto
+    tržište. <b>Širina po rangu</b> pokazuje nose li rast velika imena ili je stvarno široko.
     <br><a href="docs/vodic-kako-se-cita.html" target="_blank" rel="noopener">Cijeli vodič — kako se pokazatelj čita ↗</a>
   </div>
 </div>
@@ -345,16 +372,18 @@
 </div>
 
 <div class="top">
+  <div class="data-col">
   <div class="gauge">
     <canvas id="gaugeC" width="440" height="260"></canvas>
     <div class="val" id="gVal">—</div>
-    <div class="lbl">Tier score — sada</div>
+    <div class="lbl">Iznad EMA200 — 1D · sada</div>
+    <div class="reg" id="gReg"></div>
     <div class="sub2" id="gSub">—</div>
   </div>
   <div class="metrics" id="metrics"></div>
-</div>
+  </div>
 
-<div class="chart-panel">
+  <div class="chart-panel">
   <div class="chart-head">
     <div class="chart-title">Povijest</div>
     <div class="src-group" id="srcGroup"></div>
@@ -367,6 +396,7 @@
     <div class="tip" id="tip"></div>
   </div>
   <div class="chart-hint" id="chartHint"></div>
+  </div>
 </div>
 
 <div class="chg-panel" id="chgPanel">
@@ -423,6 +453,20 @@ const CHG_WINS={'7d':7,'30d':30,'90d':90};
 // Redoslijed prikaza: 1D prvo. Režim je važniji od taktike, pa ide gore.
 // (TFS je redoslijed računanja i ostaje 4h,1d — ne diraj, veže se na bazu.)
 const SHOW_TFS=['1d','4h'];
+// Kante po rangu: je li snaga široka ili je drže samo velika imena.
+// Kod dionica isti alat (large cap vs small cap breadth).
+const RANK_BUCKETS=[
+  {key:'t10',  label:'Top 10', lo:1,  hi:10},
+  {key:'t50',  label:'11–50',  lo:11, hi:50},
+  {key:'rest', label:'51+',    lo:51, hi:1e9},
+];
+// Koliko je DUBOKO iznad EME, ne samo koliko ih je. Dva očitanja od 81 %
+// mogu biti krhki odskok i pravi trend — razlikuje ih jedino ovo.
+const DEPTH_BANDS=[
+  {key:'jedva',   label:'jedva',   lo:0,  hi:2},
+  {key:'solidno', label:'solidno', lo:2,  hi:10},
+  {key:'duboko',  label:'duboko',  lo:10, hi:1e9},
+];
 let settings=Object.assign({topN:120, emaLen:200, range:'6m', hidden:[], src:'db', auto:true, autoMin:30, chgWin:'7d', chartH:0},
   JSON.parse(localStorage.getItem(LS.set)||'{}'));
 let cfg=JSON.parse(localStorage.getItem(LS.cfg)||'{"url":"","key":""}');
@@ -571,7 +615,7 @@ async function loadCoinSeries(c,tf,emaLen){
 }
 
 function aggregateDay(getBar){
-  const rec={pct:{},n:{},distAll:{},distAbove:{},tier:null,n_full:0};
+  const rec={pct:{},n:{},distAll:{},distAbove:{},n_full:0};
   for(const tf of TFS){
     let above=0,cnt=0,sumAll=0,sumAbove=0,nAbove=0;
     for(const c of coins){
@@ -585,15 +629,42 @@ function aggregateDay(getBar){
     rec.distAll[tf]=cnt?sumAll/cnt:null;
     rec.distAbove[tf]=nAbove?sumAbove/nAbove:null;
   }
-  let pts=0,nf=0;
+  let nf=0;
   for(const c of coins){
     if(pinnedSet.has(c.base)) continue;
     if(!TFS.every(tf=>getBar(c,tf))) continue;
-    nf++; for(const tf of TFS) if(getBar(c,tf).above) pts++;
+    nf++;
   }
   rec.n_full=nf;
-  rec.pts=pts;                                    // sirovi zbroj bodova — za prikaz izračuna
-  rec.tier=nf>=8?pts/(nf*TFS.length)*100:null;
+
+  // Sve niže gleda SAMO 1D. Spori okvir je mjera zdravlja — brzi je opis
+  // trenutka, pa nema smisla iz njega vaditi zaključke o sastavu tržišta.
+  rec.byRank={};
+  for(const b of RANK_BUCKETS){
+    let above=0,cnt=0;
+    for(const c of coins){
+      if(pinnedSet.has(c.base)) continue;
+      if(c.rank==null||c.rank<b.lo||c.rank>b.hi) continue;
+      const bar=getBar(c,'1d'); if(!bar) continue;
+      cnt++; if(bar.above) above++;
+    }
+    rec.byRank[b.key]={n:cnt, pct:cnt?above/cnt*100:null};
+  }
+
+  rec.depth={}; for(const b of DEPTH_BANDS) rec.depth[b.key]=0;
+  rec.depthN=0;
+  for(const c of coins){
+    if(pinnedSet.has(c.base)) continue;
+    const bar=getBar(c,'1d'); if(!bar||!bar.above) continue;
+    rec.depthN++;
+    for(const b of DEPTH_BANDS) if(bar.dist>=b.lo&&bar.dist<b.hi){ rec.depth[b.key]++; break; }
+  }
+
+  // BTC-ov vlastiti položaj — bez njega se ne vidi nosi li rast tržište
+  // ili jedno ime. BTC je u univerzumu kao i svi drugi, samo ga izdvajamo.
+  const btc=coins.find(c=>c.base==='BTC');
+  rec.btcAbove={'4h':btc?(getBar(btc,'4h')?.above??null):null,
+                '1d':btc?(getBar(btc,'1d')?.above??null):null};
   return rec;
 }
 
@@ -613,14 +684,14 @@ function buildCalcHist(){
 async function loadDBHist(){
   if(!cfg.url||!cfg.key) return {rows:[], reason:'nije-konfigurirano'};
   const u=cfg.url.replace(/\/+$/,'');
-  const sel='date,tier_score,n_full,pct_above_4h,pct_above_1d,n_4h,n_1d,avg_dist_all_4h,avg_dist_all_1d,avg_dist_above_4h,avg_dist_above_1d,btc_price,top_n,ema_len,n_universe,backfilled';
+  const sel='date,n_full,pct_above_4h,pct_above_1d,n_4h,n_1d,avg_dist_all_4h,avg_dist_all_1d,avg_dist_above_4h,avg_dist_above_1d,btc_price,top_n,ema_len,n_universe,backfilled';
   const r=await fetch(`${u}/rest/v1/market_breadth?select=${sel}&order=date.asc`,
     {headers:{apikey:cfg.key, Authorization:'Bearer '+cfg.key}});
   if(!r.ok) throw new Error(`Supabase: HTTP ${r.status} — provjeri URL i anon ključ.`);
   const rows=await r.json();
   return {rows:rows.map(d=>({
     ts: Date.parse(d.date+'T00:00:00Z'),
-    tier: d.tier_score, n_full: d.n_full,
+    n_full: d.n_full,
     pct:{'4h':d.pct_above_4h,'1d':d.pct_above_1d},
     n:{'4h':d.n_4h,'1d':d.n_1d},
     distAll:{'4h':d.avg_dist_all_4h,'1d':d.avg_dist_all_1d},
@@ -854,9 +925,50 @@ function tickAuto(){
 setInterval(tickAuto,1000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tickAuto(); });
 
+// ============ režim ============
+// Mrtva zona namjerno postoji: bez nje oznaka treperi dan za danom kad
+// vrijednost visi oko granice, i prestaneš joj vjerovati.
+const REG_HI=60, REG_LO=40;
+const TONE={green:'#22c55e', amber:'#f5b942', red:'#ef4444'};
+// Pozadina grafa. Alfa je namjerno niska — pozadina ne smije nadglasati
+// krivulje, na crnoj temi se to dogodi vrlo brzo.
+const TONE_BG={green:'rgba(34,197,94,.11)', amber:'rgba(245,185,66,.11)', red:'rgba(239,68,68,.11)'};
+const regBand=v=> v==null?null : v>=REG_HI?'H' : v<=REG_LO?'L' : 'M';
+// Ključ je "brzi+spori". Prvo slovo je 4h, drugo 1D.
+const REGIMES={
+  HH:{lbl:'Zdrav trend gore',          note:'Većina je iznad i mjesečnog i polugodišnjeg prosjeka.'},
+  MH:{lbl:'Trend gore, brzi popušta',  note:'Spori okvir drži, kratkoročno se hladi.'},
+  LH:{lbl:'Korekcija u trendu gore',   note:'Spori okvir drži, brzi je pao — pad unutar zdravog trenda.'},
+  HM:{lbl:'Oporavak jača',             note:'Brzi je visok, spori se penje prema pragu.'},
+  MM:{lbl:'Neodređeno',                note:'Nijedan okvir nema uvjerljivu većinu.'},
+  LM:{lbl:'Slabljenje',                note:'Brzi je pao, spori je na rubu.'},
+  HL:{lbl:'Odskok u padajućem trendu', note:'Brzi je visok, ali spori je i dalje nizak — odskok, ne preokret.'},
+  ML:{lbl:'Pokušaj odskoka',           note:'Brzi se diže, spori je nizak.'},
+  LL:{lbl:'Medvjed',                   note:'Većina je ispod oba prosjeka.'},
+};
+function regimeOf(p4h,p1d){
+  const b4=regBand(p4h), b1=regBand(p1d);
+  if(!b4||!b1) return null;
+  // Boja ide ISKLJUČIVO po sporom okviru. On je mjera zdravlja; brzi mijenja
+  // opis, ali ne smije obojati tržište u zeleno dok je spori na dnu.
+  return {key:b4+b1, ...REGIMES[b4+b1], tone:b1==='H'?'green':b1==='L'?'red':'amber'};
+}
+const regimeAt=r=>r?regimeOf(r.pct['4h'],r.pct['1d']):null;
+// Koliko dana zaredom traje isti režim, gledano od zadnjeg zatvorenog dana.
+function regimeStreak(hist){
+  if(!hist.length) return null;
+  const last=regimeAt(hist[hist.length-1]); if(!last) return null;
+  let n=0;
+  for(let i=hist.length-1;i>=0;i--){
+    const r=regimeAt(hist[i]); if(!r||r.key!==last.key) break;
+    n++;
+  }
+  return {reg:last, dana:n, ts:hist[hist.length-1].ts};
+}
+
 // ============ gauge ============
-function scoreColor(v){ if(v==null) return '#ffffff'; if(v>=60) return '#22c55e'; if(v>=40) return '#f5b942'; return '#ef4444'; }
-function drawGauge(v){
+function scoreColor(v){ if(v==null) return '#ffffff'; if(v>=REG_HI) return TONE.green; if(v>=REG_LO) return TONE.amber; return TONE.red; }
+function drawGauge(v,v2){
   const c=$('gaugeC'), ctx=c.getContext('2d');
   const W=c.width,H=c.height,cx=W/2,cy=H*0.78,R=W*0.40,lw=W*0.085;
   ctx.clearRect(0,0,W,H); ctx.lineCap='round';
@@ -869,14 +981,45 @@ function drawGauge(v){
     ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,Math.PI+(Math.max(0,Math.min(100,v))/100)*Math.PI);
     ctx.strokeStyle=scoreColor(v); ctx.lineWidth=lw; ctx.stroke();
   }
+  // Biljeg za brzi okvir (4h) na istom luku. Razmak između ispune i biljega
+  // JE raspon — ono što je prosjek prije skrivao sad se vidi na prvi pogled.
+  if(v2!=null){
+    const a=Math.PI+(Math.max(0,Math.min(100,v2))/100)*Math.PI;
+    ctx.save(); ctx.lineCap='butt';
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*(R-lw/2-1), cy+Math.sin(a)*(R-lw/2-1));
+    ctx.lineTo(cx+Math.cos(a)*(R+lw/2+1), cy+Math.sin(a)*(R+lw/2+1));
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=3; ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle='#ffffff'; ctx.font='500 15px Segoe UI'; ctx.textAlign='center';
   ctx.fillText('0',cx-R,cy+24); ctx.fillText('100',cx+R,cy+24);
 }
 
+// Oznaka režima ispod gaugea. Badge nosi ŽIVO stanje ("sada"), a redak
+// ispod govori koliko dugo traje po zatvorenim danima — ili da se lomi.
+function renderRegime(p4h,p1d){
+  const el=$('gReg'); if(!el) return;
+  const r=regimeOf(p4h,p1d);
+  if(!r){ el.innerHTML=''; return; }
+  const st=regimeStreak(histDB);
+  let dur='';
+  if(st&&st.reg.key===r.key) dur=`traje ${st.dana} ${st.dana===1?'dan':'dana'} · po zatvorenim danima`;
+  else if(st) dur=`lomi se — na closeu ${fmtDate(st.ts)} bilo je: ${st.reg.lbl.toLowerCase()}`;
+  const sp=p4h-p1d;
+  el.innerHTML=`<div class="badge" style="color:${TONE[r.tone]}">${r.lbl}</div>`
+    +`<div class="rnote">${r.note}</div>`
+    +`<div class="rnote">brzi (4h) <b style="color:${scoreColor(p4h)}">${p4h.toFixed(0)}%</b>`
+    +` · spori (1D) <b style="color:${scoreColor(p1d)}">${p1d.toFixed(0)}%</b>`
+    +` · raspon <b>${sp>0?'+':''}${sp.toFixed(0)}</b></div>`
+    +(dur?`<div class="rdur">${dur}</div>`:'');
+}
+
 function render(){
-  drawGauge(liveAgg?liveAgg.tier:null);
-  $('gVal').textContent=liveAgg&&liveAgg.tier!=null?liveAgg.tier.toFixed(0):'—';
-  $('gVal').style.color=scoreColor(liveAgg?liveAgg.tier:null);
+  const p1d=liveAgg?liveAgg.pct['1d']:null, p4h=liveAgg?liveAgg.pct['4h']:null;
+  drawGauge(p1d,p4h);
+  $('gVal').textContent=p1d==null?'—':p1d.toFixed(1)+'%';
+  $('gVal').style.color=scoreColor(p1d);
   // Gauge je ŽIV (svijeća u tijeku), zapis je ZATVOREN dan. Ne prikazujemo
   // oba broja jedan pored drugog — nego RAZLIKU, jer je to jedino operativno:
   // "gdje smo danas u odnosu na jučerašnji close".
@@ -887,25 +1030,28 @@ function render(){
   const mismatch = !!(lastDB && lastDB.top_n!=null &&
     (+settings.topN!==lastDB.top_n || +settings.emaLen!==lastDB.ema_len));
   let delta='';
-  if(!mismatch && liveAgg && liveAgg.tier!=null && lastDB && lastDB.tier!=null){
-    const d=liveAgg.tier-lastDB.tier;
+  const prev1d=lastDB?lastDB.pct['1d']:null;
+  if(!mismatch && p1d!=null && prev1d!=null){
+    const d=p1d-prev1d;
     const col=d>0?'var(--green)':d<0?'var(--red)':'var(--muted)';
     // Datum se ISPISUJE, ne pretpostavlja. Ako cron preskoči dan, ovdje je
     // prije pisalo "od jučerašnjeg closea" i za zapis star tjedan dana.
     const kasni=Math.round((expectedLastDay()-lastDB.ts)/DAY);
+    // Postotna promjena se NE prikazuje. Na omeđenoj skali 0–100 blizu poda
+    // je eksplozivna i ne znači ništa: 23→51 ispadne "+119 %", a isti
+    // strukturni pomak 60→88 samo "+47 %". Bodovi su jedina poštena mjera.
     delta=`<br><br><span style="display:inline-block;border-top:1px solid var(--border);padding-top:8px;color:var(--muted);font-size:.72rem">`
-      +`od closea ${fmtDate(lastDB.ts)} (${lastDB.tier.toFixed(1)})`
+      +`od closea ${fmtDate(lastDB.ts)} (${prev1d.toFixed(1)}%)`
       +(kasni>0?` <b style="color:var(--red)">· zapis kasni ${kasni} ${kasni===1?'dan':'dana'}</b>`:'')+`<br>`
       +`<b style="color:${col};font-size:1.3rem">${d>0?'+':''}${d.toFixed(1)}</b>`
-      +`<span style="font-size:.72rem"> boda · ${d>0?'+':''}${(d/lastDB.tier*100).toFixed(1)}%</span></span>`;
+      +`<span style="font-size:.72rem"> postotnih bodova</span></span>`;
   }
   $('gSub').innerHTML=liveAgg
     ? `<span style="color:var(--muted)">živo · svijeća u tijeku (${fmtDate(Date.now())})</span><br>`
-      + `<span title="Svaki coin: 1 bod po TF-u iznad EMA200. Zbroj ÷ (broj coina × 2) × 100.">`
-      + `${liveAgg.pts??'?'} bodova od ${liveAgg.n_full*2} mogućih</span><br>`
-      + `<span style="font-size:.7rem">${liveAgg.n_full} coina × 2 TF-a</span>`
+      + `${p1d==null?'—':Math.round(p1d/100*(liveAgg.n['1d']||0))+' od '+(liveAgg.n['1d']||0)+' coina iznad EMA200'}`
       + delta
     : '—';
+  renderRegime(p4h,p1d);
 
   const m=$('metrics'); m.innerHTML='';
   if(liveAgg){
@@ -924,10 +1070,47 @@ function render(){
       <div class="v" style="color:${a>0?'var(--green)':'var(--red)'};font-size:1.05rem">${fmtPct(a,true)}</div>
       <div class="n">neto svi · trendajući ${fmtPct(b,true)}</div></div>`);
     }
+    // Nose li rast velika imena ili je stvarno široko. Isti alat kao
+    // large cap vs small cap breadth kod dionica.
+    const rb=liveAgg.byRank||{};
+    const rrows=RANK_BUCKETS.filter(b=>(rb[b.key]?.n||0)>0).map(b=>{
+      const o=rb[b.key];
+      return `<div class="rrow"><span>${b.label}</span>`
+        +`<b style="color:${scoreColor(o.pct)}">${o.pct==null?'—':o.pct.toFixed(0)+'%'}</b>`
+        +`<span>${Math.round((o.pct||0)/100*o.n)} od ${o.n}</span></div>`;
+    }).join('');
+    if(rrows) m.insertAdjacentHTML('beforeend',`
+      <div class="metric" style="grid-column:1/-1"><div class="k">Širina po rangu — 1D</div>${rrows}
+      <div class="n">Top 10 visoko a 51+ nisko = rast nose velika imena, nije široko.</div></div>`);
+
+    // Koliko DUBOKO iznad EME, ne samo koliko ih je: isti postotak može
+    // biti krhki odskok (svi jedva iznad) i pravi trend (svi duboko).
+    const dp=liveAgg.depth||{}, dn=liveAgg.depthN||0;
+    if(dn>0){
+      const col={jedva:TONE.red, solidno:TONE.amber, duboko:TONE.green};
+      const rng=b=>b.hi>1e8?`>${b.lo} %`:`${b.lo}–${b.hi} %`;
+      const bar=DEPTH_BANDS.map(b=>`<i style="width:${dp[b.key]/dn*100}%;background:${col[b.key]}"></i>`).join('');
+      const leg=DEPTH_BANDS.map(b=>`<span><span style="color:${col[b.key]}">■</span> ${b.label} (${rng(b)}): <b>${dp[b.key]}</b></span>`).join('');
+      m.insertAdjacentHTML('beforeend',`
+        <div class="metric" style="grid-column:1/-1"><div class="k">Kvaliteta širine — 1D</div>
+        <div class="qbar">${bar}</div><div class="qleg">${leg}</div>
+        <div class="n">Raspodjela ${dn} coina koji jesu iznad EMA200 — koliko ih je uvjerljivo iznad.</div></div>`);
+    }
+
+    // BTC-ov vlastiti položaj, ne samo cijena: rast koji nosi jedno ime
+    // izgleda isto kao široki rast dok ne pogledaš ovo.
+    const b1=liveAgg.btcAbove?.['1d'];
+    let btcNote='referenca';
+    if(b1!=null){
+      let uzak='';
+      if(b1===true && p1d!=null && p1d<REG_LO) uzak=` · <b style="color:${TONE.amber}">uzak trend — BTC drži, tržište ne</b>`;
+      else if(b1===false && p1d!=null && p1d>REG_HI) uzak=` · <b style="color:${TONE.amber}">BTC zaostaje za tržištem</b>`;
+      btcNote=(b1?'iznad':'ispod')+' EMA200 na 1D'+uzak;
+    }
     m.insertAdjacentHTML('beforeend',`
       <div class="metric"><div class="k">BTC</div>
       <div class="v" style="font-size:1.05rem">${liveAgg.btc?'$'+liveAgg.btc.toLocaleString('en-US',{maximumFractionDigits:0}):'—'}</div>
-      <div class="n">referenca</div></div>`);
+      <div class="n">${btcNote}</div></div>`);
     // Zadnji dan je važniji od broja dana: broj raste i kad je zapis star.
     const lastTs=histDB.length?histDB[histDB.length-1].ts:null;
     const stale=lastTs!=null && lastTs<expectedLastDay();
@@ -1133,16 +1316,21 @@ function updateBiasWarn(){
 }
 
 // ============ chart ============
-// `w` = debljina linije. Tier je najdeblji jer je zaključak, BTC najtanji i
-// iscrtkan jer je referenca — pozadina, a ne poruka.
+// `w` = debljina linije. BTC je najtanji i iscrtkan jer je referenca —
+// pozadina, a ne poruka. `axis`: 'r' = desna os (cijena), 's' = zasebna
+// traka ispod grafa (raspon ide u minus, pa ne stane na skalu 0–100).
 const SERIES_DEF=[
-  {key:'tier', label:'Tier score', color:'#ef4444', w:3},
-  {key:'p4h',  label:'% iznad 4h', color:'#ffffff', w:2},
-  {key:'p1d',  label:'% iznad 1D', color:'#22c55e', w:2},
-  {key:'btc',  label:'BTC cijena', color:'#f5b942', w:1, dash:[5,3], axis:'r'},
+  {key:'p4h',    label:'% iznad 4h',       color:'#ffffff', w:2},
+  {key:'p1d',    label:'% iznad 1D',       color:'#22c55e', w:2},
+  {key:'spread', label:'Raspon (4h − 1D)', color:'#ef4444', w:2, axis:'s'},
+  {key:'btc',    label:'BTC cijena',       color:'#f5b942', w:1, dash:[5,3], axis:'r'},
 ];
 const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
-const seriesVal=(r,k)=> k==='tier'?r.tier : k==='btc'?r.btc : r.pct[k==='p4h'?'4h':'1d'];
+// Raspon je razlika brzog i sporog okvira — jedini broj koji je stari
+// prosjek uništavao: 81/19 i 50/50 davali su isti tier score.
+const seriesVal=(r,k)=> k==='btc'?r.btc
+  : k==='spread'?((r.pct['4h']==null||r.pct['1d']==null)?null:r.pct['4h']-r.pct['1d'])
+  : r.pct[k==='p4h'?'4h':'1d'];
 const RANGES={'1m':30,'3m':90,'6m':180,'1y':365,'max':1e9};
 const curHist=()=>settings.src==='db'?histDB:histCalc;
 function visibleHist(){
@@ -1259,6 +1447,15 @@ function renderLegend(){
     el.onclick=()=>{settings.hidden=off?settings.hidden.filter(k=>k!==s.key):[...settings.hidden,s.key]; saveSet(); renderLegend(); drawChart();};
     l.appendChild(el);
   }
+  // Pozadina po režimu nije krivulja, ali se pali i gaši istim potezom —
+  // pa stoji u istom redu. U zupčaniku je nitko ne bi našao.
+  const roff=settings.hidden.includes('regime');
+  const rel=document.createElement('span');
+  rel.className=roff?'off':'';
+  rel.title='Pozadinske trake po režimu tržišta';
+  rel.innerHTML=`<span class="sw" style="background:linear-gradient(90deg,${TONE.red},${TONE.amber},${TONE.green});height:8px"></span>Režim (pozadina)`;
+  rel.onclick=()=>{settings.hidden=roff?settings.hidden.filter(k=>k!=='regime'):[...settings.hidden,'regime']; saveSet(); renderLegend(); drawChart();};
+  l.appendChild(rel);
 }
 
 let chartGeom=null;
@@ -1273,12 +1470,34 @@ function drawChart(){
     ctx.fillText(settings.src==='db'?'Iskrena povijest je prazna — cron još nije upisao nijedan dan.':'Nema podataka.',W/2,H/2);
     chartGeom=null; updateZoomUi(); return;
   }
-  const P={l:42,r:58,t:12,b:26}, iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const P={l:42,r:58,t:12,b:26};
+  // Raspon dobiva vlastitu traku ispod glavnog polja: ide u minus, pa bi na
+  // skali 0–100 bio odrezan, a razvlačenje glavne osi na −100..100 prepolovilo
+  // bi razlučivost obje postotne krivulje.
+  const spreadOn=act.some(s=>s.axis==='s');
+  const SPG=10, SPH=spreadOn?Math.max(38,Math.min(68,(H-P.t-P.b)*0.22)):0;
+  const iw=W-P.l-P.r, ih=H-P.t-P.b-(spreadOn?SPH+SPG:0);
   const x=i=>P.l+(data.length===1?iw/2:i/(data.length-1)*iw);
   const yL=v=>P.t+ih-(v/100)*ih;
   const bv=data.map(d=>d.btc).filter(v=>v!=null);
   const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
   const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
+  const sTop=P.t+ih+SPG, sMid=sTop+SPH/2;
+  const sAbs=data.map(d=>seriesVal(d,'spread')).filter(v=>v!=null).map(Math.abs);
+  const sMax=Math.max(20,...sAbs);
+  const yS=v=>sMid-(v/sMax)*(SPH/2-4);
+  const yOf=(s,v)=> s.axis==='r'?yR(v) : s.axis==='s'?yS(v) : yL(v);
+
+  // Pozadina po režimu — koliko si dugo u kojem stanju vidi se bez čitanja
+  // brojki. Ide prije mreže da crte ostanu na vrhu.
+  if(!settings.hidden.includes('regime')){
+    const half=data.length>1?iw/(data.length-1)/2:iw/2;
+    for(let i=0;i<data.length;i++){
+      const rg=regimeAt(data[i]); if(!rg) continue;
+      const x0=Math.max(P.l,x(i)-half), x1=Math.min(W-P.r,x(i)+half);
+      ctx.fillStyle=TONE_BG[rg.tone]; ctx.fillRect(x0,P.t,x1-x0,ih);
+    }
+  }
 
   ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1; ctx.fillStyle='#ffffff'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
   for(let v=0;v<=100;v+=20){const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke(); ctx.fillText(v,P.l-8,y+4);}
@@ -1288,11 +1507,23 @@ function drawChart(){
     ctx.textAlign='left';
     for(let i=0;i<=4;i++){const v=bMin-pad+i/4*((bMax+pad)-(bMin-pad)); ctx.fillText((v/1000).toFixed(0)+'k',W-P.r+8,yR(v)+4);}
   }
+  if(spreadOn){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(P.l,yS(0)); ctx.lineTo(W-P.r,yS(0)); ctx.stroke();
+    ctx.fillStyle='#ffffff'; ctx.font='10px Segoe UI'; ctx.textAlign='right';
+    ctx.fillText('0',P.l-8,yS(0)+3);
+    ctx.fillText('+'+Math.round(sMax),P.l-8,yS(sMax)+8);
+    ctx.fillText('−'+Math.round(sMax),P.l-8,yS(-sMax));
+    ctx.restore();
+  }
   ctx.textAlign='center';
   // Broj oznaka mora pratiti širinu, ne biti fiksan: na telefonu se šest
   // datuma pretvori u kašu preklopljenih znakova. Uz to kratimo format.
   const kratko=W<520;
-  const want=Math.max(2,Math.min(6,Math.floor(W/(kratko?58:88))));
+  // Gustoća se računa iz `iw`, ne iz `W`: oznake stoje unutar polja, a ne
+  // preko cijelog platna — inače se na užem grafu počnu dodirivati.
+  const want=Math.max(2,Math.min(6,Math.floor(iw/(kratko?58:88))));
   const step=Math.max(1,Math.ceil(data.length/want));
   const lbl=ts=>kratko
     ? new Date(ts).toLocaleDateString('hr-HR',{day:'2-digit',month:'2-digit'})
@@ -1306,7 +1537,7 @@ function drawChart(){
     for(let i=0;i<data.length;i++){
       const v=seriesVal(data[i],s.key);
       if(v==null){started=false;continue;}   // rupa prekida liniju — ne interpolira se
-      const px=x(i), py=s.axis==='r'?yR(v):yL(v);
+      const px=x(i), py=yOf(s,v);
       if(!started){ctx.moveTo(px,py);started=true;} else ctx.lineTo(px,py);
     }
     ctx.stroke(); ctx.setLineDash([]);
@@ -1315,7 +1546,7 @@ function drawChart(){
       ctx.fillStyle=s.color;
       for(let i=0;i<data.length;i++){
         const v=seriesVal(data[i],s.key); if(v==null) continue;
-        ctx.beginPath(); ctx.arc(x(i),yL(v),2.6,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x(i),yOf(s,v),2.6,0,7); ctx.fill();
       }
     }
   }
@@ -1327,10 +1558,10 @@ function drawChart(){
     const hx=x(hoverIdx), d=data[hoverIdx];
     ctx.save();
     ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,P.t+ih); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,spreadOn?sTop+SPH:P.t+ih); ctx.stroke(); ctx.setLineDash([]);
     for(const s of act){
       const v=seriesVal(d,s.key); if(v==null) continue;
-      const py=s.axis==='r'?yR(v):yL(v);
+      const py=yOf(s,v);
       ctx.beginPath(); ctx.arc(hx,py,4.5,0,7);
       ctx.fillStyle=s.color; ctx.fill();
       ctx.lineWidth=2; ctx.strokeStyle='#000000'; ctx.stroke();
@@ -1347,7 +1578,7 @@ function drawChart(){
     ctx.fillStyle='#ffffff'; ctx.fillText(t,bx+tw/2,H-8);
     ctx.restore();
   }
-  chartGeom={data,act,x,yL,yR,P,iw,ih,W,H};
+  chartGeom={data,act,x,yL,yR,yS,yOf,P,iw,ih,W,H};
   updateZoomUi();
 }
 
@@ -1365,9 +1596,14 @@ function showTipAt(clientX){
   let html=`<div class="d">${fmtDate(d.ts)}${d.backfilled?' · popunjeno':''}</div>`;
   for(const s of act){
     const v=seriesVal(d,s.key);
-    const t=v==null?'—':(s.key==='btc'?'$'+v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toFixed(1)+(s.key==='tier'?'':'%'));
+    const t=v==null?'—'
+      :s.key==='btc'?'$'+v.toLocaleString('en-US',{maximumFractionDigits:0})
+      :s.key==='spread'?(v>0?'+':'')+v.toFixed(1)
+      :v.toFixed(1)+'%';
     html+=`<div><span class="sw" style="${swStyle(s)}"></span>${s.label}: <b>${t}</b></div>`;
   }
+  const rg=regimeAt(d);
+  if(rg) html+=`<div style="margin-top:4px;color:${TONE[rg.tone]}"><b>${rg.lbl}</b></div>`;
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';
   tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';
