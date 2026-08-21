@@ -680,6 +680,7 @@ function buildCalcHist(){
   for(const ts of [...days].sort((a,b)=>a-b)){
     const rec=aggregateDay((c,tf)=>live.get(c.base)?.[tf]?.get(ts));
     rec.ts=ts; rec.btc=btcDaily.get(ts)??null;
+    if(ts===dayOf(Date.now())) rec.live=true;   // dan u tijeku, još se miče
     out.push(rec);
   }
   return out;
@@ -1339,7 +1340,19 @@ const seriesVal=(r,k)=> k==='btc'?r.btc
   : k==='spread'?((r.pct['4h']==null||r.pct['1d']==null)?null:r.pct['4h']-r.pct['1d'])
   : r.pct[k==='p4h'?'4h':'1d'];
 const RANGES={'1m':30,'3m':90,'6m':180,'1y':365,'max':1e9};
-const curHist=()=>settings.src==='db'?histDB:histCalc;
+// Današnji dan nije zatvoren pa ga u zapisu nema. Kači se na kraj SAMO za
+// graf — `histDB` ostaje čist, jer se iz njega računaju promjene, trajanje
+// režima i upozorenja, a ondje neupisana točka nema što tražiti.
+function curHist(){
+  if(settings.src!=='db') return histCalc;
+  if(!liveAgg||!histDB.length) return histDB;
+  const zadnji=histDB[histDB.length-1], ts=dayOf(Date.now());
+  if(zadnji.ts>=ts) return histDB;                    // zapis za danas je već stigao
+  // Ako pogled nije pod istim pravilima kao zapis, živa točka i krivulja
+  // mjere različite univerzume — spojnica među njima bila bi laž.
+  if(zadnji.top_n!=null && (+settings.topN!==zadnji.top_n || +settings.emaLen!==zadnji.ema_len)) return histDB;
+  return [...histDB, {...liveAgg, ts, live:true}];
+}
 function visibleHist(){
   const h=curHist(); const days=RANGES[settings.range]??180;
   if(days>1e8) return h;
@@ -1566,12 +1579,17 @@ function drawChart(){
 
   // Debela zelena ide zadnja da lezi NA vrhu prozirnih, a ne ispod njih.
   const redom=[...act].sort((a,b)=>(a.key==='p1d'?1:0)-(b.key==='p1d'?1:0));
+  // Zadnja točka može biti dan u tijeku. Puna linija ide samo do zadnjeg
+  // ZAPISANOG dana; živa točka se dodaje posebno, iscrtkano i šuplja, da se
+  // zapis i procjena ne miješaju u istu crtu.
+  const zivaZadnja=data.length>1 && !!data[data.length-1].live;
+  const nCrta=data.length-(zivaZadnja?1:0);
   for(const s of redom){
     ctx.globalAlpha=s.alpha??1;
     ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=s.w||1.9;
     if(s.dash) ctx.setLineDash(s.dash);
     let started=false;
-    for(let i=0;i<data.length;i++){
+    for(let i=0;i<nCrta;i++){
       const v=seriesVal(data[i],s.key);
       if(v==null){started=false;continue;}   // rupa prekida liniju — ne interpolira se
       const px=x(i), py=yOf(s,v);
@@ -1579,14 +1597,36 @@ function drawChart(){
     }
     ctx.stroke(); ctx.setLineDash([]);
     // pojedinačne točke — dok povijest ima par dana, linija se ne vidi
-    if(data.length<=45 && s.key!=='btc'){
+    if(nCrta<=45 && s.key!=='btc'){
       ctx.fillStyle=s.color;
-      for(let i=0;i<data.length;i++){
+      for(let i=0;i<nCrta;i++){
         const v=seriesVal(data[i],s.key); if(v==null) continue;
         ctx.beginPath(); ctx.arc(x(i),yOf(s,v),s.key==='p1d'?3:2.2,0,7); ctx.fill();
       }
     }
     ctx.globalAlpha=1;
+  }
+
+  if(zivaZadnja){
+    const iZ=data.length-1, iP=data.length-2;
+    for(const s of redom){
+      const v=seriesVal(data[iZ],s.key), vp=seriesVal(data[iP],s.key);
+      if(v==null) continue;
+      ctx.globalAlpha=s.alpha??1;
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.w||1.9;
+      if(vp!=null){
+        ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(x(iP),yOf(s,vp)); ctx.lineTo(x(iZ),yOf(s,v));
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+      if(s.key!=='btc'){
+        // Šuplja točka: ista boja, ali prazna — nije zapis nego mjerenje u tijeku.
+        ctx.beginPath(); ctx.arc(x(iZ),yOf(s,v),s.key==='p1d'?4:3,0,7);
+        ctx.fillStyle='#000000'; ctx.fill();
+        ctx.lineWidth=2; ctx.strokeStyle=s.color; ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
   }
 
   // Okomica pod prstom/kursorom: bez nje se iz oblačića ne vidi NA KOJEM danu
@@ -1631,7 +1671,8 @@ function showTipAt(clientX){
   lastX=clientX;
   if(i!==hoverIdx){ hoverIdx=i; drawChart(); }
   const d=data[i], tip=$('tip');
-  let html=`<div class="d">${fmtDate(d.ts)}${d.backfilled?' · popunjeno':''}</div>`;
+  let html=`<div class="d">${fmtDate(d.ts)}${d.backfilled?' · popunjeno':''}`
+    +(d.live?` <span style="color:var(--amber)">· u tijeku</span>`:'')+`</div>`;
   for(const s of act){
     const v=seriesVal(d,s.key);
     const t=v==null?'—'
@@ -1642,6 +1683,7 @@ function showTipAt(clientX){
   }
   const rg=regimeAt(d);
   if(rg) html+=`<div style="margin-top:4px;color:${TONE[rg.tone]}"><b>${rg.lbl}</b></div>`;
+  if(d.live) html+=`<div style="color:var(--muted);margin-top:3px">dan još nije zatvoren — još se miče</div>`;
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';
   tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';

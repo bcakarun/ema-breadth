@@ -40,6 +40,13 @@ Deploy edge funkcije ide odvojeno (Supabase), git push je ne mijenja.
   na skali 0–100 bio bi odrezan, a razvlačenje glavne osi na −100..100 prepolovilo bi
   razlučivost obje postotne krivulje. Kad je serija skrivena, traka nestaje i glavno polje
   vraća punu visinu.
+- **Živa točka**: današnji dan nije zatvoren pa ga u zapisu nema. Kači se na kraj
+  **samo za graf** (`curHist()`), iscrtkanom spojnicom i šupljom točkom — `histDB` ostaje
+  čist, jer se iz njega računaju promjene, trajanje režima i upozorenja, a ondje neupisana
+  točka nema što tražiti. Ne kači se ako se `topN`/`emaLen` razlikuju od zadnjeg zapisa:
+  tad bi spojnica vezala dva različita univerzuma.
+- **Raspon 1M/3M/… mjeri se od sada**, ne od zadnjeg zapisa. Zato 1M pokaže 29 zapisanih
+  dana + živu točku: trideseti dan je današnji, koji još nije zatvoren.
 - **Pozadina po režimu**: okomite trake u boji režima tog dana, alfa 0.11 (`TONE_BG`).
   Jače od toga i pozadina proguta krivulje na crnoj temi. Pali se/gasi u legendi
   (ključ `regime` u `settings.hidden`).
