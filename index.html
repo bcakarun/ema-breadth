@@ -1497,13 +1497,15 @@ function drawChart(){
     ctx.fillText(settings.src==='db'?'Iskrena povijest je prazna — cron još nije upisao nijedan dan.':'Nema podataka.',W/2,H/2);
     chartGeom=null; updateZoomUi(); return;
   }
-  const P={l:42,r:58,t:12,b:26};
-  // Raspon dobiva vlastitu traku ispod glavnog polja: ide u minus, pa bi na
-  // skali 0–100 bio odrezan, a razvlačenje glavne osi na −100..100 prepolovilo
-  // bi razlučivost obje postotne krivulje.
-  const spreadOn=act.some(s=>s.axis==='s');
-  const SPG=10, SPH=spreadOn?Math.max(38,Math.min(68,(H-P.t-P.b)*0.22)):0;
-  const iw=W-P.l-P.r, ih=H-P.t-P.b-(spreadOn?SPH+SPG:0);
+  // Raspon i BTC dijele desnu stranu, svaki sa svojom osi. Kad su oba
+  // uključena treba širi rub da se brojke ne sudare — ali samo toliko koliko
+  // brojke stvarno zauzimaju. Na telefonu bi predarezan rub pojeo trećinu
+  // širine i graf bi ostao bez polja.
+  const kratko=W<520;
+  const spreadOn=act.some(s=>s.axis==='s'), btcOn=act.some(s=>s.axis==='r');
+  const P={l:kratko?32:42,
+           r:(spreadOn&&btcOn)?(kratko?66:78):(kratko?46:58), t:12, b:26};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
   const x=i=>P.l+(data.length===1?iw/2:i/(data.length-1)*iw);
   // Lijeva os se steže na uključene postotne krivulje: 10 % zračnosti ispod
   // najniže i iznad najviše vrijednosti (10 % same vrijednosti, ne raspona).
@@ -1522,10 +1524,19 @@ function drawChart(){
   const bv=data.map(d=>d.btc).filter(v=>v!=null);
   const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
   const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
-  const sTop=P.t+ih+SPG, sMid=sTop+SPH/2;
-  const sAbs=data.map(d=>seriesVal(d,'spread')).filter(v=>v!=null).map(Math.abs);
-  const sMax=Math.max(20,...sAbs);
-  const yS=v=>sMid-(v/sMax)*(SPH/2-4);
+  // Raspon ide preko cijelog glavnog polja, s vlastitom osi — kao BTC, samo
+  // na drugoj skali. U traci je bio stisnut na petinu visine i nije se čitao.
+  // Nula ostaje u kadru uvijek: raspon je razlika, pa je udaljenost OD NULE
+  // cijelo značenje. Bez nje ne znaš gledaš li slaganje ili razilazak.
+  const sv=data.map(d=>seriesVal(d,'spread')).filter(v=>v!=null);
+  let sMin=-10, sMax=10;
+  if(sv.length){
+    const mn=Math.min(...sv), mx=Math.max(...sv);
+    sMin=Math.min(0, mn-Math.abs(mn)*0.1);
+    sMax=Math.max(0, mx+Math.abs(mx)*0.1);
+    if(sMax-sMin<1){ sMin-=1; sMax+=1; }
+  }
+  const yS=v=>P.t+ih-((v-sMin)/(sMax-sMin))*ih;
   const yOf=(s,v)=> s.axis==='r'?yR(v) : s.axis==='s'?yS(v) : yL(v);
 
   // Pozadina po režimu — koliko si dugo u kojem stanju vidi se bez čitanja
@@ -1550,24 +1561,33 @@ function drawChart(){
     ctx.strokeStyle='#ffffff'; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
   }
-  if(act.some(s=>s.axis==='r')&&bv.length){
-    ctx.textAlign='left';
-    for(let i=0;i<=4;i++){const v=bMin-pad+i/4*((bMax+pad)-(bMin-pad)); ctx.fillText((v/1000).toFixed(0)+'k',W-P.r+8,yR(v)+4);}
-  }
-  if(spreadOn){
+  // Desne osi. Boja oznaka prati boju krivulje — s dvije skale s iste strane
+  // bijele brojke ne bi rekle koja je čija.
+  const bojaSerije=k=>(SERIES_DEF.find(s=>s.key===k)||{}).color||'#ffffff';
+  ctx.textAlign='left';
+  if(spreadOn && sv.length){
+    // Nulta crta: raspon 0 znači da se okviri slažu. Ta je crta referenca,
+    // pa ide iscrtkano i u boji serije, da se ne brka s mrežom postotaka.
     ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1;
+    ctx.strokeStyle=bojaSerije('spread'); ctx.globalAlpha=.45; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(P.l,yS(0)); ctx.lineTo(W-P.r,yS(0)); ctx.stroke();
-    ctx.fillStyle='#ffffff'; ctx.font='10px Segoe UI'; ctx.textAlign='right';
-    ctx.fillText('0',P.l-8,yS(0)+3);
-    ctx.fillText('+'+Math.round(sMax),P.l-8,yS(sMax)+8);
-    ctx.fillText('−'+Math.round(sMax),P.l-8,yS(-sMax));
     ctx.restore();
+    ctx.fillStyle=bojaSerije('spread');
+    const sStep=niceStep(sMax-sMin);
+    for(let v=Math.ceil(sMin/sStep)*sStep; v<=sMax+1e-9; v+=sStep){
+      const t=(v>0?'+':'')+v.toFixed(0);
+      ctx.fillText(t, W-P.r+(kratko?5:8), Math.min(P.t+ih-1, Math.max(P.t+9, yS(v)+4)));
+    }
   }
+  if(btcOn&&bv.length){
+    ctx.fillStyle=bojaSerije('btc');
+    const dx=spreadOn?(kratko?33:42):(kratko?5:8);
+    for(let i=0;i<=4;i++){const v=bMin-pad+i/4*((bMax+pad)-(bMin-pad)); ctx.fillText((v/1000).toFixed(0)+'k',W-P.r+dx,yR(v)+4);}
+  }
+  ctx.fillStyle='#ffffff';
   ctx.textAlign='center';
   // Broj oznaka mora pratiti širinu, ne biti fiksan: na telefonu se šest
   // datuma pretvori u kašu preklopljenih znakova. Uz to kratimo format.
-  const kratko=W<520;
   // Gustoća se računa iz `iw`, ne iz `W`: oznake stoje unutar polja, a ne
   // preko cijelog platna — inače se na užem grafu počnu dodirivati.
   const want=Math.max(2,Math.min(6,Math.floor(iw/(kratko?58:88))));
@@ -1636,7 +1656,7 @@ function drawChart(){
     const hx=x(hoverIdx), d=data[hoverIdx];
     ctx.save();
     ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,spreadOn?sTop+SPH:P.t+ih); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(hx,P.t); ctx.lineTo(hx,P.t+ih); ctx.stroke(); ctx.setLineDash([]);
     for(const s of act){
       const v=seriesVal(d,s.key); if(v==null) continue;
       const py=yOf(s,v);

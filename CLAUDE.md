@@ -36,10 +36,13 @@ Deploy edge funkcije ide odvojeno (Supabase), git push je ne mijenja.
   bijel i % iznad 1D zelen srednje debljine (mjerenja), Raspon crven (`axis:'s'`), BTC žut,
   najtanji i iscrtkan (referenca, ne poruka). Legenda i oblačić crtaju kvadratić iz istih
   polja — nova serija ne treba diranje legende.
-- **Raspon (4h − 1D)** ima vlastitu traku ispod glavnog polja (`axis:'s'`), jer ide u minus:
-  na skali 0–100 bio bi odrezan, a razvlačenje glavne osi na −100..100 prepolovilo bi
-  razlučivost obje postotne krivulje. Kad je serija skrivena, traka nestaje i glavno polje
-  vraća punu visinu.
+- **Raspon (4h − 1D)** ide preko glavnog polja s **vlastitom osi** (`axis:'s'`), kao BTC
+  samo na drugoj skali. Traka ispod grafa je uklonjena 21.08.2026. — u njoj je krivulja
+  koristila petinu visine i nije se čitala. Nula ostaje u kadru uvijek: raspon je razlika,
+  pa je udaljenost od nule cijelo značenje.
+- **Desne osi**: raspon i BTC dijele desnu stranu. `P.r` raste kad su oba uključena, a
+  oznake su obojane bojom svoje krivulje — s dvije skale s iste strane bijele brojke ne bi
+  rekle koja je čija. Rub je uži na `W<520`, inače bi na telefonu pojeo trećinu širine.
 - **Živa točka**: današnji dan nije zatvoren pa ga u zapisu nema. Kači se na kraj
   **samo za graf** (`curHist()`), iscrtkanom spojnicom i šupljom točkom — `histDB` ostaje
   čist, jer se iz njega računaju promjene, trajanje režima i upozorenja, a ondje neupisana
