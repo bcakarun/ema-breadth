@@ -114,7 +114,12 @@
   .qbar i{display:block; height:100%;}
   .qleg{display:flex; flex-wrap:wrap; gap:4px 10px; font-size:.68rem; color:var(--muted);}
   .qleg b{color:var(--text); font-weight:600;}
-  .rrow{display:flex; align-items:baseline; justify-content:space-between; gap:8px; font-size:.75rem; padding:3px 0;}
+  /* Grid, ne flex: sa `space-between` postotak pluta ovisno o duljini oznake,
+     pa se tri retka ne poklope u stupac. */
+  .rrow{display:grid; grid-template-columns:1fr auto 1fr; align-items:baseline;
+        gap:8px; font-size:.75rem; padding:3px 0;}
+  .rrow>:nth-child(2){text-align:center;}
+  .rrow>:nth-child(3){text-align:right;}
   .rrow+.rrow{border-top:1px solid var(--line);}
   .rrow span{color:var(--muted);}
 
@@ -1319,11 +1324,13 @@ function updateBiasWarn(){
 // `w` = debljina linije. BTC je najtanji i iscrtkan jer je referenca —
 // pozadina, a ne poruka. `axis`: 'r' = desna os (cijena), 's' = zasebna
 // traka ispod grafa (raspon ide u minus, pa ne stane na skalu 0–100).
+// 1D je mjera zdravlja — najdeblji i jedini pun. Ostalo je kontekst, pa ide
+// tanje i na pola prozirnosti: vidiš ga kad ga tražiš, ne otima ti pogled.
 const SERIES_DEF=[
-  {key:'p4h',    label:'% iznad 4h',       color:'#ffffff', w:2},
-  {key:'p1d',    label:'% iznad 1D',       color:'#22c55e', w:2},
-  {key:'spread', label:'Raspon (4h − 1D)', color:'#ef4444', w:2, axis:'s'},
-  {key:'btc',    label:'BTC cijena',       color:'#f5b942', w:1, dash:[5,3], axis:'r'},
+  {key:'p1d',    label:'% iznad 1D',       color:'#22c55e', w:3.4},
+  {key:'p4h',    label:'% iznad 4h',       color:'#ffffff', w:1.6, alpha:.5},
+  {key:'spread', label:'Raspon (4h − 1D)', color:'#ef4444', w:1.6, alpha:.5, axis:'s'},
+  {key:'btc',    label:'BTC cijena',       color:'#f5b942', w:1.4, alpha:.5, dash:[5,3], axis:'r'},
 ];
 const activeSeries=()=>SERIES_DEF.filter(s=>!settings.hidden.includes(s.key));
 // Raspon je razlika brzog i sporog okvira — jedini broj koji je stari
@@ -1436,7 +1443,7 @@ function buildChips(){
   }
   zoomSig=''; updateZoomUi();
 }
-const swStyle=s=>`background:${s.dash?`repeating-linear-gradient(90deg,${s.color} 0 5px,transparent 5px 8px)`:s.color};height:${Math.max(2,Math.round(s.w||2))}px`;
+const swStyle=s=>`background:${s.dash?`repeating-linear-gradient(90deg,${s.color} 0 5px,transparent 5px 8px)`:s.color};height:${Math.max(2,Math.round(s.w||2))}px;opacity:${s.alpha??1}`;
 function renderLegend(){
   const l=$('legend'); l.innerHTML='';
   for(const s of SERIES_DEF){
@@ -1456,6 +1463,13 @@ function renderLegend(){
   rel.innerHTML=`<span class="sw" style="background:linear-gradient(90deg,${TONE.red},${TONE.amber},${TONE.green});height:8px"></span>Režim (pozadina)`;
   rel.onclick=()=>{settings.hidden=roff?settings.hidden.filter(k=>k!=='regime'):[...settings.hidden,'regime']; saveSet(); renderLegend(); drawChart();};
   l.appendChild(rel);
+}
+
+// Korak mreže bira se prema rasponu, cilj je oko 5 crta. Fiksni korak od 20
+// na stegnutoj osi da tri crte ili tridesetak — ni jedno nije čitljivo.
+function niceStep(span){
+  const sirovo=span/5, p=Math.pow(10,Math.floor(Math.log10(sirovo))), n=sirovo/p;
+  return (n<=1?1:n<=2?2:n<=5?5:10)*p;
 }
 
 let chartGeom=null;
@@ -1478,7 +1492,20 @@ function drawChart(){
   const SPG=10, SPH=spreadOn?Math.max(38,Math.min(68,(H-P.t-P.b)*0.22)):0;
   const iw=W-P.l-P.r, ih=H-P.t-P.b-(spreadOn?SPH+SPG:0);
   const x=i=>P.l+(data.length===1?iw/2:i/(data.length-1)*iw);
-  const yL=v=>P.t+ih-(v/100)*ih;
+  // Lijeva os se steže na uključene postotne krivulje: 10 % zračnosti ispod
+  // najniže i iznad najviše vrijednosti (10 % same vrijednosti, ne raspona).
+  // Bez toga sama 1D krivulja (13–27 %) leži zgnječena uz dno skale 0–100.
+  // Gornja granica se reže na 100: više od toga ne postoji, postotak je postotak.
+  const lv=[];
+  for(const ser of act){ if(ser.axis) continue;
+    for(const d of data){ const v=seriesVal(d,ser.key); if(v!=null) lv.push(v); } }
+  let lMin=0, lMax=100;
+  if(lv.length){
+    const mn=Math.min(...lv), mx=Math.max(...lv);
+    lMin=Math.max(0, mn*0.9); lMax=Math.min(100, mx*1.1);
+    if(lMax-lMin<1){ lMin=Math.max(0,lMin-1); lMax=Math.min(100,lMax+1); }
+  }
+  const yL=v=>P.t+ih-((v-lMin)/(lMax-lMin))*ih;
   const bv=data.map(d=>d.btc).filter(v=>v!=null);
   const bMin=bv.length?Math.min(...bv):0, bMax=bv.length?Math.max(...bv):1, pad=(bMax-bMin)*0.08||1;
   const yR=v=>P.t+ih-((v-(bMin-pad))/((bMax+pad)-(bMin-pad)))*ih;
@@ -1500,9 +1527,16 @@ function drawChart(){
   }
 
   ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1; ctx.fillStyle='#ffffff'; ctx.font='11px Segoe UI'; ctx.textAlign='right';
-  for(let v=0;v<=100;v+=20){const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke(); ctx.fillText(v,P.l-8,y+4);}
-  ctx.strokeStyle='#ffffff'; ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
+  const lStep=niceStep(lMax-lMin), dec=lStep<1?1:0;
+  for(let v=Math.ceil(lMin/lStep)*lStep; v<=lMax+1e-9; v+=lStep){
+    const y=yL(v); ctx.beginPath(); ctx.moveTo(P.l,y); ctx.lineTo(W-P.r,y); ctx.stroke();
+    ctx.fillText(v.toFixed(dec),P.l-8,y+4);
+  }
+  // Polovica se crta samo ako je u kadru — na stegnutoj osi je često nema.
+  if(50>lMin && 50<lMax){
+    ctx.strokeStyle='#ffffff'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(P.l,yL(50)); ctx.lineTo(W-P.r,yL(50)); ctx.stroke(); ctx.setLineDash([]);
+  }
   if(act.some(s=>s.axis==='r')&&bv.length){
     ctx.textAlign='left';
     for(let i=0;i<=4;i++){const v=bMin-pad+i/4*((bMax+pad)-(bMin-pad)); ctx.fillText((v/1000).toFixed(0)+'k',W-P.r+8,yR(v)+4);}
@@ -1530,7 +1564,10 @@ function drawChart(){
     : fmtDate(ts);
   for(let i=0;i<data.length;i+=step) ctx.fillText(lbl(data[i].ts),x(i),H-8);
 
-  for(const s of act){
+  // Debela zelena ide zadnja da lezi NA vrhu prozirnih, a ne ispod njih.
+  const redom=[...act].sort((a,b)=>(a.key==='p1d'?1:0)-(b.key==='p1d'?1:0));
+  for(const s of redom){
+    ctx.globalAlpha=s.alpha??1;
     ctx.beginPath(); ctx.strokeStyle=s.color; ctx.lineWidth=s.w||1.9;
     if(s.dash) ctx.setLineDash(s.dash);
     let started=false;
@@ -1546,9 +1583,10 @@ function drawChart(){
       ctx.fillStyle=s.color;
       for(let i=0;i<data.length;i++){
         const v=seriesVal(data[i],s.key); if(v==null) continue;
-        ctx.beginPath(); ctx.arc(x(i),yOf(s,v),2.6,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x(i),yOf(s,v),s.key==='p1d'?3:2.2,0,7); ctx.fill();
       }
     }
+    ctx.globalAlpha=1;
   }
 
   // Okomica pod prstom/kursorom: bez nje se iz oblačića ne vidi NA KOJEM danu
@@ -1791,6 +1829,44 @@ if(window.ResizeObserver){
   new ResizeObserver(()=>{ clearTimeout(t); t=setTimeout(drawChart,40); })
     .observe(document.querySelector('.chart-wrap'));
 }
+// Ključevi serija se s vremenom mijenjaju. Mrtvi ključ iz starije verzije
+// (npr. 'tier') ostao bi u `hidden` zauvijek i nosio zabunu.
+{
+  const valjani=new Set([...SERIES_DEF.map(s=>s.key),'regime']);
+  const cisto=(settings.hidden||[]).filter(k=>valjani.has(k));
+  if(cisto.length!==(settings.hidden||[]).length){ settings.hidden=cisto; saveSet(); }
+}
+
+// Više otvorenih kartica dijeli isti localStorage, ali svaka drži svoju kopiju
+// `settings` u memoriji. Bez ovoga kartica koja je otvorena od prije prebriše
+// izbor napravljen u drugoj čim se sama osvježi — i izgleda kao da se prikaz
+// ne pamti. Preuzima se samo PRIKAZ; topN/emaLen mijenjaju račun i traže
+// novo dohvaćanje, pa se ne diraju u pozadini.
+window.addEventListener('storage',e=>{
+  if(e.key!==LS.set||!e.newValue) return;
+  let n; try{ n=JSON.parse(e.newValue); }catch{ return; }
+  settings.hidden=n.hidden||[];
+  if(n.range) settings.range=n.range;
+  if(n.src) settings.src=n.src;
+  settings.chartH=n.chartH||0;
+  resetZoom(); applyChartH(); buildChips(); renderLegend(); drawChart();
+});
+
+// CSS `resize` nema svoj događaj, pa se ručno razvučena visina dosad gubila
+// kod osvježavanja. Hvata se na kraju poteza: ako se visina promijenila
+// između pritiska i otpuštanja, korisnik ju je razvukao (pomak grafa je ne mijenja).
+{
+  const cw=document.querySelector('.chart-wrap');
+  let hPocetak=null;
+  cw.addEventListener('pointerdown',()=>{ hPocetak=cw.getBoundingClientRect().height; });
+  window.addEventListener('pointerup',()=>{
+    if(hPocetak==null) return;
+    const h=Math.round(cw.getBoundingClientRect().height);
+    if(Math.abs(h-hPocetak)>2){ settings.chartH=h; saveSet(); }
+    hPocetak=null;
+  });
+}
+
 if(!cfg.url) toggleSheet('cfgBox');
 if(settings.chartH) applyChartH();
 drawGauge(null); buildChips(); renderLegend(); renderChanges(); refresh();
