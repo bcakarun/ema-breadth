@@ -1703,7 +1703,6 @@ function showTipAt(clientX){
   }
   const rg=regimeAt(d);
   if(rg) html+=`<div style="margin-top:4px;color:${TONE[rg.tone]}"><b>${rg.lbl}</b></div>`;
-  if(d.live) html+=`<div style="color:var(--muted);margin-top:3px">dan još nije zatvoren — još se miče</div>`;
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';
   tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';
