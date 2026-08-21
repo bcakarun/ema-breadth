@@ -1708,7 +1708,19 @@ function showTipAt(clientX){
   if(rg) html+=`<div style="margin-top:4px;color:${TONE[rg.tone]}"><b>${rg.lbl}</b></div>`;
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';
-  const L=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12));
+  // Okomica i sam kursor su zabranjena zona: oblačić ne smije leći preko mjesta
+  // koje upravo gledaš. Ide desno od zone ako ondje stane cijeli, inače lijevo.
+  // Zona pokriva i okomicu (dan pod prstom) i stvarni položaj miša — kad je
+  // točaka malo, razmak među njima zna biti pola širine grafa.
+  const Wc=chartGeom.W, tw=tip.offsetWidth, g=14;
+  const cx=chartGeom.x(i), mx=clientX-r.left;
+  const zL=Math.min(cx,mx)-g, zR=Math.max(cx,mx)+g;
+  let L;
+  if(zR+tw<=Wc-6) L=zR;                 // desno stane cijeli
+  else if(zL-tw>=4) L=zL-tw;            // lijevo stane cijeli
+  // Ne stane ni s jedne strane: bježi što dalje od zone. Preklapanje je tad
+  // neizbježno, ali izbor visine i dalje čuva točku pod kursorom.
+  else L=(Wc-zR)>=zL ? Math.max(4,Wc-tw-6) : 4;
   tip.style.left=L+'px';
   // Oblačić bježi od krivulja. Dvije moguće visine, gore i dolje; bira se ona
   // koja manje smeta. Dno se poravnava na dno POLJA, ne platna — ispod polja
