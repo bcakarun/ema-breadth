@@ -1486,6 +1486,9 @@ function niceStep(span){
 }
 
 let chartGeom=null;
+// Na kojoj je polovici oblačić. Pamti se između poziva jer se inače, dok
+// krivulja pleše oko sredine polja, prebacuje gore-dolje na svaki piksel.
+let tipDolje=false;
 let hoverIdx=null;   // dan pod kursorom/prstom — nosi okomicu i kružiće
 function drawChart(){
   const c=$('chart'), ctx=c.getContext('2d');
@@ -1705,8 +1708,39 @@ function showTipAt(clientX){
   if(rg) html+=`<div style="margin-top:4px;color:${TONE[rg.tone]}"><b>${rg.lbl}</b></div>`;
   html+=`<div style="color:var(--muted);margin-top:3px">n_full = ${d.n_full}</div>`;
   tip.innerHTML=html; tip.style.display='block';
-  tip.style.left=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12))+'px';
-  tip.style.top='12px';
+  const L=Math.min(chartGeom.W-tip.offsetWidth-6,Math.max(4,chartGeom.x(i)+12));
+  tip.style.left=L+'px';
+  // Oblačić bježi od krivulja. Dvije moguće visine, gore i dolje; bira se ona
+  // koja manje smeta. Dno se poravnava na dno POLJA, ne platna — ispod polja
+  // stoje datumi.
+  const ih=chartGeom.ih, H=chartGeom.H, R=L+tip.offsetWidth, Ht=tip.offsetHeight;
+  const gore=12, dolje=Math.max(4,Math.min(H-Ht-4, P.t+ih-Ht-4));
+  // Koliko točaka kutija pokrije ako sjedne na visinu T. `samoPodKursorom`
+  // broji samo dan koji upravo čitaš — on je važniji od svih ostalih zajedno,
+  // jer zbog njega i gledaš u graf.
+  const pokriva=(T,samoPodKursorom)=>{
+    let n=0;
+    for(let k=0;k<data.length;k++){
+      if(samoPodKursorom && k!==i) continue;
+      const X=chartGeom.x(k); if(X<L-4||X>R+4) continue;
+      for(const ser of act){
+        const v=seriesVal(data[k],ser.key); if(v==null) continue;
+        const y=chartGeom.yOf(ser,v);
+        if(y>=T&&y<=T+Ht){ n++; break; }
+      }
+    }
+    return n;
+  };
+  // Na rubu grafa kutija se stisne na stranu kursora i legne baš na tu točku.
+  // Zato prvo pitanje nije "gdje ima više mjesta" nego "gdje NE pokrivam
+  // ono što korisnik gleda".
+  const kG=pokriva(gore,true), kD=pokriva(dolje,true);
+  if(kG!==kD) tipDolje=kD<kG;
+  else {
+    const nG=pokriva(gore,false), nD=pokriva(dolje,false);
+    if(nG!==nD) tipDolje=nD<nG;   // jednako loše na obje strane -> ostaje gdje je
+  }
+  tip.style.top=(tipDolje?dolje:gore)+'px';
 }
 const hideTip=()=>{ $('tip').style.display='none'; if(hoverIdx!=null){ hoverIdx=null; drawChart(); } };
 let tipTimer=null, lastX=null;
